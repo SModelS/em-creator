@@ -26,8 +26,8 @@ fi
 
 
 
-madgraph="MG5_aMC_v2.9.3.tar.gz"
-URL=https://launchpad.net/mg5amcnlo/2.0/2.9.x/+download/$madgraph
+madgraph="MG5_aMC_v3.5.1.tar.gz"
+URL=https://launchpad.net/mg5amcnlo/3.0/3.5.x/+download/$madgraph
 echo -n "Install MadGraph (y/n)? "
 read answer
 if echo "$answer" | grep -iq "^y" ;then
@@ -35,13 +35,6 @@ if echo "$answer" | grep -iq "^y" ;then
 	echo "[installer] getting MadGraph5"; wget $URL 2>/dev/null || curl -O $URL; tar -zxf $madgraph -C MG5 --strip-components 1;
 	cd $homeDIR
 	rm $madgraph;
-	echo "[installer] replacing MadGraph files with fixes";
-    cp ./madgraphfixes/mg5_configuration.txt MG5/input/;
-	echo "[installer] copying model folder to MG5/models";
-	cp -r ./Feynrules/LQDM_UFO/ ./MG5/models;
-    cp ./madgraphfixes/madgraph_interface.py MG5/madgraph/interface/;
-    cp ./madgraphfixes/diagram_generation.py MG5/madgraph/core/;
-
 fi
 
 #Get HepMC tarball
@@ -67,7 +60,7 @@ fi
 
 
 #Get pythia tarball
-pythia="pythia8244.tgz"
+pythia="pythia8245.tgz"
 URL=https://pythia.org/download/pythia82/$pythia
 echo -n "Install Pythia (y/n)? "
 read answer
@@ -88,93 +81,40 @@ fi
 
 
 echo -n "Install Delphes (y/n)? "
+repo=https://github.com/delphes/delphes
+URL=http://cp3.irmp.ucl.ac.be/downloads/$delphes
 read answer
 if echo "$answer" | grep -iq "^y" ;then
-	echo "[installer] getting Delphes";
-  git clone --depth 1 --branch 3.4.2 https://github.com/delphes/delphes.git Delphes;
+  latest=`git ls-remote --sort="version:refname" --tags $repo  | grep -v -e "pre" | grep -v -e "\{\}" | cut -d/ -f3- | tail -n1`
+  echo "[installer] Cloning Delphes version $latest";
+  git clone --branch $latest https://github.com/delphes/delphes.git Delphes
   cd Delphes;
-  cp ../Makefile_Delphes ./Makefile;
   export PYTHIA8=$homeDIR/pythia8;
   echo "[installer] installing Delphes";
   make HAS_PYTHIA8=true;
+  rm -rf .git
   cd $homeDIR;
 fi
 
 
-#echo -n "Install CheckMATE (y/n)? "
-#read answer
-#if echo "$answer" | grep -iq "^y" ;then
-#  echo "[installer] getting CheckMATE";
-#  git clone git@github.com:CheckMATE2/checkmate2.git CheckMATE2;
-#  cd CheckMATE2;
-#  rm -rf .git
-#  autoreconf -i -f;
-#  ./configure --with-rootsys=$ROOTSYS --with-delphes=$homeDIR/Delphes --with-pythia=$homeDIR/pythia8 --with-madgraph=$homeDIR/MG5 --with-hepmc=$homeDIR/HepMC
-#  echo "[installer] installing CheckMATE";
-#  make -j4
-#  cd $homeDIR
-#  echo "[installer] Adding new analyses to CheckMATE";
-#  cp -r myCheckMate2Files/tools/* CheckMATE2/tools/;
-#  cp -r myCheckMate2Files/data/* CheckMATE2/data/;
-#  cd CheckMATE2;
-#  echo "[installer] recompiling CheckMATE";
-#  make;
-#  cd $homeDIR
-#fi
-
-echo -n "Install CheckMATE3 (y/n)? "
+echo -n "Install CheckMATE (y/n)? "
 read answer
 if echo "$answer" | grep -iq "^y" ;then
-  echo "[installer] getting CheckMATE3";
-  git clone --branch v3.0beta git@github.com:CheckMATE2/checkmate2.git CheckMATE3;
-  cd CheckMATE3;
+  echo "[installer] getting CheckMATE";
+  git clone git@github.com:CheckMATE2/checkmate2.git CheckMATE2;
+  cd CheckMATE2;
   rm -rf .git
   autoreconf -i -f;
   ./configure --with-rootsys=$ROOTSYS --with-delphes=$homeDIR/Delphes --with-pythia=$homeDIR/pythia8 --with-madgraph=$homeDIR/MG5 --with-hepmc=$homeDIR/HepMC
-  echo "[installer] installing CheckMATE3";
+  echo "[installer] installing CheckMATE";
   make -j4
   cd $homeDIR
-  echo "[installer] Adding new analyses to CheckMATE";
-  cp -r myCheckMate3Files/tools/* CheckMATE3/tools/;
-  cp -r myCheckMate3Files/data/* CheckMATE3/data/;
-  cd CheckMATE3;
+  echo "[installer] Adding small fixes to CheckMATE (from checkMateFiles)";
+  cp checkMateFiles/tools/python/* CheckMATE2/tools/python/;
+  cp -r checkMateFiles/data/atlas_2010_14293/* CheckMATE2/data/atlas_2010_14293/;
+  cd CheckMATE2;
   echo "[installer] recompiling CheckMATE";
   make;
   cd $homeDIR
 fi
 
-
-echo -n "Install MadAnalysis (y/n)? "
-madana=v1.9_beta
-URL=https://code.launchpad.net/~ma5dev/madanalysis5/$madana
-read answer
-if echo "$answer" | grep -iq "^y" ;then
-   echo "[installer] getting MadAnalysis";
-   bzr branch lp:~ma5dev/madanalysis5/v1.9_beta;
-   mv v1.9_beta MadAnalysis5
-   cd MadAnalysis5/bin
-   echo -e "install fastjet\ninstall zlib\ninstall delphes\ninstall PAD\nexit\n" > mad_install.txt
-   ./ma5 -f < mad_install.txt
-   rm mad_install.txt
-   cd $homeDIR
-   echo "[installer] done";
-fi
-#
-#
-# echo -n "Install CutLang (y/n)? "
-# read answer
-# if echo "$answer" | grep -iq "^y" ;then
-#   echo "[installer] getting CutLang";
-#   git clone git@github.com:unelg/CutLang.git CutLang;
-#   cd CutLang;
-#   cd CLA;
-#   echo "[installer] compiling CutLang";
-#   make;
-#   cd ..;
-#   rm -rf .git;
-#   rm -rf ADLLHCanalyses;
-#   echo "[installer] getting ADLLHCanalyses";
-#   git clone git@github.com:ADL4HEP/ADLLHCanalyses.git ADLLHCanalyses;
-#   rm -rf ADLLHCanalyses/.git
-#   cd $homeDIR
-# fi

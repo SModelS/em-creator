@@ -10,7 +10,7 @@
 
 #First tell the system where to find the modules:
 import sys,os,glob,shutil
-from ufo2slha.configParserWrapper import ConfigParserExt
+from configParserWrapper import ConfigParserExt
 import logging
 import subprocess
 import time,datetime
@@ -94,8 +94,8 @@ def RunCheckMate(parserDict):
     checkmatePath = os.path.abspath(pars['checkmateFolder'])
     checkmateBin = os.path.join(checkmatePath,'bin')
     logger.info('Running checkmate with steering card: %s ' %cardFile)
-    logger.debug('Running: python2 ./CheckMATE %s at %s' %(cardFile,checkmateBin))
-    run = subprocess.Popen('python2 ./CheckMATE %s' %(cardFile)
+    logger.debug('Running: ./CheckMATE %s at %s' %(cardFile,checkmateBin))
+    run = subprocess.Popen('./CheckMATE %s' %(cardFile)
                        ,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,cwd=checkmateBin)
     output,errorMsg= run.communicate()
     logger.debug('CheckMATE error:\n %s \n' %errorMsg)
@@ -113,11 +113,6 @@ def RunCheckMate(parserDict):
                 file_path = os.path.join(mg5folder, f)
                 if os.path.isdir(file_path):
                     shutil.rmtree(file_path)
-        analysisfolder = os.path.join(resultFolder,'analysis')
-        if os.path.isfile(os.path.join(analysisfolder,'analysisstdout_atlas_1712_02118_ew.log')):
-            os.remove(os.path.join(analysisfolder,'analysisstdout_atlas_1712_02118_ew.log'))
-        if os.path.isfile(os.path.join(analysisfolder,'analysisstdout_atlas_1712_02118_strong.log')):
-            os.remove(os.path.join(analysisfolder,'analysisstdout_atlas_1712_02118_strong.log'))
 
 
     now = datetime.datetime.now()
@@ -240,6 +235,16 @@ if __name__ == "__main__":
             help='path to the parameters file. Default is checkmate_parameters.ini')
     ap.add_argument('-v', '--verbose', default='info',
             help='verbose level (debug, info, warning or error). Default is error')
+
+
+    # First make sure the correct env variables have been set:
+    LDPATH = subprocess.check_output('echo $LD_LIBRARY_PATH',shell=True,text=True)
+    ROOTINC = subprocess.check_output('echo $ROOT_INCLUDE_PATH',shell=True,text=True)
+    pythiaDir = os.path.abspath('./pythia8/lib')
+    delphesDir = os.path.abspath('./Delphes/external')
+    if pythiaDir not in LDPATH or delphesDir not in ROOTINC:
+        print('Enviroment variables not properly set. Run source setenv.sh first.')
+        sys.exit()
 
 
     t0 = time.time()

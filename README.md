@@ -7,10 +7,10 @@ To bake, run ./bake.py
 The following codes must be installed:
 
   * [Delphes](https://cp3.irmp.ucl.ac.be/projects/delphes)
-  * [Pythia8](http://home.thep.lu.se/Pythia/)
+  * [Pythia8.2](https://pythia.org/)
   * [HepMC](http://lcgapp.cern.ch/project/simu/HepMC/) (optional)
   * [MadGraph5](https://launchpad.net/mg5amcnlo/)
-  * [CheckMATE3](https://checkmate.hepforge.org/)
+  * [CheckMATE2](https://github.com/CheckMATE2/checkmate2)
 
 The script installer.sh will try to fetch the appropriate tarballs and install them.
 
