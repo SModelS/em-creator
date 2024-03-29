@@ -35,8 +35,16 @@ def install():
     print ( "installing cm2 ..." )
     # url = "git@github.com:CheckMATE2/checkmate2.git"
     url = "https://github.com/CheckMATE2/checkmate2.git"
-    cmd = f"git clone {url}"
+    hack1 = ""
+    atlas201822hacks = False
+    if atlas201822hacks:
+        hack1 = "-b cms_sus_19_005"
+    cmd = f"git clone {hack1} {url}"
     execute ( cmd )
+    if atlas201822hacks:
+        hack2 = "cp ../hacks/atlas_2010_14293.cc checkmate2/tools/analysis/src/analyses/ATLAS_13TeV/atlas_2010_14293.cc"
+        execute ( hack2 )
+    
     #cmd = "cd checkmate2 ; mv aclocal.m4 aclocal.old ; aclocal && libtoolize --force && autoreconf"
     autoreconf = shutil.which ( "autoreconf" )
     if autoreconf == None:
