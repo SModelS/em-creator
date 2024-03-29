@@ -90,6 +90,18 @@ class CM2Wrapper:
         print ( "%s[cm2Wrapper] %s%s" % ( colorama.Fore.YELLOW, " ".join ( msg ), \
                    colorama.Fore.RESET ) )
 
+    def checkAtlasSus201822 ( self ):
+        print ( f"[cm2Wrapper] making sure files for ATLAS-SUS-2018-22 are complete" )
+        basepath = "cm2/checkmate2/data/atlas_2010_14293"
+        path = f"{basepath}/BDTxml/ZeroLepton2018-SRBDT-GGd1_weight1.xml"
+        if not os.path.exists ( path ):
+            cmd = f"cd {basepath}; tar xzvf ZeroLepton2018-SRBDT-weight.tar.gz"
+            execute ( cmd )
+        path = f"{basepath}/Likelihoods/SR4j-3400_bkgonly.json"
+        if not os.path.exists ( path ):
+            cmd = f"cd {basepath}; tar xzvf Likelihoods.tar.gz"
+            execute ( cmd )
+
     def debug( self, *msg ):
         pass
 
@@ -195,6 +207,8 @@ class CM2Wrapper:
         mass_stripped = str(masses).replace("(", "").replace(")", "")
         mass_stripped = mass_stripped.replace(",", "_").replace(" ", "")
         self.instanceName = f"{self.analyses}_{self.topo}_{mass_stripped}"
+        if "atlas_2010_14293" in self.analyses:
+            self.checkAtlasSus201822()
         print ( f"[cm2Wrapper] initialse checkmate {self.ver} for {self.analyses}" )
         self.checkInstallation()
         if not os.path.exists ( self.outputfile() ):
