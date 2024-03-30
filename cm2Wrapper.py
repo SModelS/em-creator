@@ -275,10 +275,12 @@ class CM2Wrapper:
                 shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)# ,cwd=checkmateBin)
         output,errorMsg= run.communicate()
         errorMsg = errorMsg.decode("UTF-8")
+        from inspect import currentframe, getframeinfo
         if len(errorMsg)>0:
-            self.info( f'CheckMATE error: {errorMsg}' )
+            self.info( f'CheckMATE error (line {getframeinfo(currentframe()).lineno}) when running {self.executable}/{self.configfile}:' )
+            self.info( f'   `   -- msg: {errorMsg}' )
             output = output.decode("UTF-8")
-            self.info( f'CheckMATE output:\n {output}\n' )
+            self.info( f'CheckMATE output was:\n {output}\n' )
         # at this point we move the result from cm2tempdir to cm2results 
         bakeryHelpers.mkdir ( self.cm2results )
         if os.path.exists ( self.outputfile() ):

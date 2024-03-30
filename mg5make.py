@@ -27,7 +27,7 @@ def install_plugins( pyver=3 ):
 
 def install( ver, plugins = True, pyver = 3 ):
     """
-    :param ver: MG5 version (eg 3_5_3)
+    :param ver: MG5 version (eg 3_5_1)
     :param plugins: install also plugins
     :param pyver: python version, 2 or 3
     """
@@ -57,19 +57,23 @@ def install( ver, plugins = True, pyver = 3 ):
             print ( "download failed: %s" % a )
             sys.exit()
     cmd = "tar xzvf %s" % tarball
+    # print ( f"cmd: {cmd}" )
     subprocess.getoutput ( cmd )
     foldername = f"MG5_aMC_v{ver}"
-    if ver >= "3.5.1":
+    #print ( f"ver {ver}")
+    if ver >= "3_5_2":
         foldername = f"mg5amcnlo-{verdot}"
 
     cmd = f"mv {foldername}/* ."
     if pyver == 4:
         cmd = f"mv {foldername}_py3/* ."
+    #print ( f"cmd: {cmd}" )
     subprocess.getoutput ( cmd )
-    cmd = f"rmdir {foldername}"
+    cmd = f"rm -r {foldername}"
     if pyver == 4:
         cmd += "_py3"
         # cmd = "rmdir MG5_aMC_v%s_py3" % ver
+    #print ( f"cmd: {cmd}" )
     subprocess.getoutput ( cmd )
     if not os.path.exists ( "bin/mg5_aMC" ):
         print ( "something went wrong with the install. please check manually" )
@@ -133,8 +137,8 @@ if __name__ == "__main__":
                              action="store_true" )
     argparser.add_argument ( '-p', '--pyver', help='python version [3]',
                              type=int, default=3 )
-    argparser.add_argument ( '-V', '--version', help='MG5 version [3_5_3]',
-                             type=str, default="3_5_3" )
+    argparser.add_argument ( '-V', '--version', help='MG5 version [3_5_1]',
+                             type=str, default="3_5_1" )
     args = argparser.parse_args()
     args.version = args.version.replace(".","_")
     if args.trim:
