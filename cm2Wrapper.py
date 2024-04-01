@@ -96,11 +96,11 @@ class CM2Wrapper:
         path = f"{basepath}/BDTxml/ZeroLepton2018-SRBDT-GGd1_weight1.xml"
         if not os.path.exists ( path ):
             cmd = f"cd {basepath}; tar xzvf ZeroLepton2018-SRBDT-weight.tar.gz"
-            execute ( cmd )
+            self.exe ( cmd )
         path = f"{basepath}/Likelihoods/SR4j-3400_bkgonly.json"
         if not os.path.exists ( path ):
             cmd = f"cd {basepath}; tar xzvf Likelihoods.tar.gz"
-            execute ( cmd )
+            self.exe ( cmd )
 
     def debug( self, *msg ):
         pass

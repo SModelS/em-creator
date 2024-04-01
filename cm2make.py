@@ -36,7 +36,7 @@ def install():
     # url = "git@github.com:CheckMATE2/checkmate2.git"
     url = "https://github.com/CheckMATE2/checkmate2.git"
     hack1 = ""
-    atlas201822hacks = False
+    atlas201822hacks = True
     if atlas201822hacks:
         hack1 = "-b cms_sus_19_005"
     cmd = f"git clone {hack1} {url}"
