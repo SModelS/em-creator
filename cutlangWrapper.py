@@ -137,10 +137,22 @@ class CutLangWrapper:
             if self._confirmation("Download from github?"):
                 args = ['git', 'clone', 'https://github.com/unelg/CutLang']
                 #v = 'v.2.9.0'
-                #v = 'v2.9.10'
-                #args = ['git', 'clone', '-b', v, 'https://github.com/unelg/CutLang']
+                v = 'v2.14.2'
+                args = ['git', 'clone', '-b', v, 'https://github.com/unelg/CutLang']
                 # args = ['git', 'clone', 'https://github.com/unelg/CutLang']
                 execute(args, exit_on_fail=True, logfile=self.initlog)
+                gitHacks = True
+                if gitHacks:
+                    args = [ 'git', 'rm', '--cached', 'ADLLHCanalyses' ]
+                    execute ( args, cwd = "CutLang/" )
+                    args = [ 'rm', '-rf', 'ADLLHCanalyses' ]
+                    execute ( args, cwd = "CutLang/" )
+                    args = [ 'git', 'submodule', 'add', 'https://github.com/ADL4HEP/ADLLHCanalyses' ]
+                    execute ( args, cwd = "CutLang/" )
+                    args = [ 'git', 'submodule', 'add', 'https://github.com/ADL4HEP/ADLAnalysisDrafts' ]
+                    execute ( args, cwd = "CutLang/" )
+                    args = [ 'git', 'submodule', 'add', 'https://github.com/ADL4HEP/ADLCMSSUSY' ]
+                    execute ( args, cwd = "CutLang/" )
             else:
                 self._error("No CutLang dir. Exiting.")
                 sys.exit()
