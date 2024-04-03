@@ -7,6 +7,8 @@
 .. moduleauthor:: Wolfgang Waltenberger <wolfgang.waltenberger@gmail.com>
 """
 
+import re
+
 class GambitWrapper:
     def __init__ ( self, pathToGambit = "../gambit_2.4/" ):
         self.pathToGambit = pathToGambit
@@ -114,6 +116,22 @@ class GambitWrapper:
                         idToGambit[arxivnr]=ananame
                     hasEntry = True
                     continue
+                findArxivNrs = re.findall ( r" \d\d\d\d.\d\d\d\d\d", line )
+                if len(findArxivNrs)>0:
+                    arxivnr = findArxivNrs[0][1:]
+                    if len(arxivnr)>0:
+                        arxivnr= "arXiv:"+arxivnr
+                        gambitToId[ananame]=arxivnr
+                        idToGambit[arxivnr]=ananame
+                    hasEntry = True
+                    continue
+                if "cds.cern.ch/record" in line:
+                    p1 = line.find("https://")
+                    if p1 == -1:
+                        p1 = line.find("http://")
+                    url = line[p1:]
+                    url = url.strip()
+                    print ( f"@@0 url {url}" )
             if not hasEntry:
                 print ( f"we did not find an entry for {ananame}" )
                 
