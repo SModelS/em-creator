@@ -15,7 +15,7 @@ import locker
 
 class MA5Wrapper:
     def __init__ ( self, topo, njets, rerun, analyses, keep=False,
-                   sqrts=13, ver="1.9.60", keephepmc=True ):
+                   sqrts=13, ver="1.10.12", keephepmc=True ):
         """
         :param topo: e.g. T1
         :param keep: keep cruft files, for debugging
