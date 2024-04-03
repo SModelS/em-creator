@@ -43,6 +43,15 @@ class GambitWrapper:
                     idToGambit[anaid]=ananame
                     hasEntry = True
                     continue
+                if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
+                    p1 = line.find ( "PHYSICS/CONFNOTES" )
+                    anaid = line[p1+18:]
+                    p2 = anaid.find("/")
+                    anaid = anaid[:p2]
+                    gambitToId[ananame]=anaid
+                    idToGambit[anaid]=ananame
+                    hasEntry = True
+                    continue
                 if "cms-results.web.cern.ch/cms-results/public-results/publications" in line:
                     p1 = line.find ( "results/publications" )
                     anaid = line[p1+21:]
@@ -52,11 +61,37 @@ class GambitWrapper:
                     idToGambit[anaid]=ananame
                     hasEntry = True
                     continue
+                if "cms-results.web.cern.ch/cms-results/public-results/preliminary-results" in line:
+                    p1 = line.find ( "results/preliminary-results" )
+                    anaid = line[p1+28:]
+                    p2 = anaid.find("/")
+                    anaid = "CMS-PAS-"+anaid[:p2]
+                    gambitToId[ananame]=anaid
+                    idToGambit[anaid]=ananame
+                    hasEntry = True
+                    continue
                 if "arxiv:" in line or "arXiv:" in line:
                     line = line.lower()
                     p1 = line.find ( "arxiv:" )
                     arxivnr = line[p1+6:]
                     arxivnr = arxivnr.split(" ")[0]
+                    arxivnr = arxivnr.strip()
+                    if arxivnr.endswith(")"):
+                        arxivnr = arxivnr[:-1]
+                    if arxivnr.endswith(","):
+                        arxivnr = arxivnr[:-1]
+                    if len(arxivnr)>0:
+                        arxivnr= "arXiv:"+arxivnr
+                        gambitToId[ananame]=arxivnr
+                        idToGambit[arxivnr]=ananame
+                    hasEntry = True
+                    continue
+                if "arxiv.org" in line:
+                    line = line.lower()
+                    line = line.replace( "abs/","" ).replace("pdf/","")
+                    line = line.replace( ".pdf","" )
+                    p1 = line.find ( "arxiv.org/" )
+                    arxivnr = line[p1+10:]
                     arxivnr = arxivnr.strip()
                     if arxivnr.endswith(")"):
                         arxivnr = arxivnr[:-1]
