@@ -21,6 +21,9 @@ install_cm2:
 pull_from_clip:
 	mkdir -p embaked
 	scp -r clip-login-1:git/em-creator/embaked/\*embaked embaked
+#	rm -rf cm2tempdir
+#	scp -r clip-login-1:git/em-creator/cm2tempdir .
+#	tar czvf cm2tempdir.tar.gz cm2tempdir/
 
 backup_embaked:
 	./utils/backupEmbaked.py
