@@ -16,9 +16,9 @@ class GambitWrapper:
         keys = list ( self.idToGambit.keys() )
         keys.sort()
 
-        for k in keys:
+        for ctr,k in enumerate ( keys ):
             v = self.idToGambit[k]
-            print ( f"{k:20s} {v:40s}" )
+            print ( f"#{ctr:2d} {k:20s} {v:40s}" )
 
     def compileAnalyses ( self ):
         import glob
@@ -28,6 +28,8 @@ class GambitWrapper:
         for f in files:
             ananame = f.replace(".cpp","").replace(dirname,"").\
                       replace("Analysis_","")
+            if ananame in [ "Minimum", "Covariance" ]:
+                continue
             # print ( ananame )
             h = open ( f, "rt" )
             lines = h.readlines()
@@ -55,6 +57,15 @@ class GambitWrapper:
                 if "cms-results.web.cern.ch/cms-results/public-results/publications" in line:
                     p1 = line.find ( "results/publications" )
                     anaid = line[p1+21:]
+                    p2 = anaid.find("/")
+                    anaid = "CMS-"+anaid[:p2]
+                    gambitToId[ananame]=anaid
+                    idToGambit[anaid]=ananame
+                    hasEntry = True
+                    continue
+                if "cms-results.web.cern.ch/cms-results/public-results/superseded" in line:
+                    p1 = line.find ( "results/superseded" )
+                    anaid = line[p1+19:]
                     p2 = anaid.find("/")
                     anaid = "CMS-"+anaid[:p2]
                     gambitToId[ananame]=anaid
