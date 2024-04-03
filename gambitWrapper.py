@@ -32,6 +32,7 @@ class GambitWrapper:
             h = open ( f, "rt" )
             lines = h.readlines()
             h.close()
+            hasEntry = False
             for line in lines:
                 if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/PAPERS" in line:
                     p1 = line.find ( "PHYSICS/PAPERS" )
@@ -40,6 +41,7 @@ class GambitWrapper:
                     anaid = "ATLAS-"+anaid[:p2]
                     gambitToId[ananame]=anaid
                     idToGambit[anaid]=ananame
+                    hasEntry = True
                     continue
                 if "cms-results.web.cern.ch/cms-results/public-results/publications" in line:
                     p1 = line.find ( "results/publications" )
@@ -48,7 +50,27 @@ class GambitWrapper:
                     anaid = "CMS-"+anaid[:p2]
                     gambitToId[ananame]=anaid
                     idToGambit[anaid]=ananame
+                    hasEntry = True
                     continue
+                if "arxiv:" in line or "arXiv:" in line:
+                    line = line.lower()
+                    p1 = line.find ( "arxiv:" )
+                    arxivnr = line[p1+6:]
+                    arxivnr = arxivnr.split(" ")[0]
+                    arxivnr = arxivnr.strip()
+                    if arxivnr.endswith(")"):
+                        arxivnr = arxivnr[:-1]
+                    if arxivnr.endswith(","):
+                        arxivnr = arxivnr[:-1]
+                    if len(arxivnr)>0:
+                        arxivnr= "arXiv:"+arxivnr
+                        gambitToId[ananame]=arxivnr
+                        idToGambit[arxivnr]=ananame
+                    hasEntry = True
+                    continue
+            if not hasEntry:
+                print ( f"we did not find an entry for {ananame}" )
+                
         self.gambitToId = gambitToId
         self.idToGambit = idToGambit
 
