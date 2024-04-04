@@ -1,0 +1,1 @@
+../smodels-utils/clip/slurm_bake.py
