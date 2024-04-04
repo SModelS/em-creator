@@ -63,7 +63,7 @@ class Locker:
         Orphaned lockfiles (4 hours after creation) get removed.
         """
         filename = self.lockfile( masses )
-        if not os.path.exists ( filename )
+        if not os.path.exists ( filename ):
             return False
         m = os.stat ( filename )
         ## dt is time since creation, in hours
