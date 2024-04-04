@@ -282,7 +282,7 @@ class CM2Wrapper:
         errorMsg = errorMsg.decode("UTF-8")
         from inspect import currentframe, getframeinfo
         if len(errorMsg)>0:
-            self.info( f'CheckMATE error (line {getframeinfo(currentframe()).lineno}) when running {self.executable}/{self.configfile}:' )
+            self.info( f'CheckMATE error (line {getframeinfo(currentframe()).lineno}) when running {self.executable}  {self.configfile}:' )
             self.info( f'   `   -- msg: {errorMsg}' )
             output = output.decode("UTF-8")
             self.info( f'CheckMATE output was:\n {output}\n' )
