@@ -8,6 +8,7 @@
 """
 
 import re
+import gambitHelpers
 
 class GambitWrapper:
     def __init__ ( self, pathToGambit = "../gambit_2.4/" ):
@@ -131,7 +132,11 @@ class GambitWrapper:
                         p1 = line.find("http://")
                     url = line[p1:]
                     url = url.strip()
-                    print ( f"@@0 url {url}" )
+                    anaid = gambitHelpers.scrapeCdsPage ( url )
+                    gambitToId[ananame]=anaid
+                    idToGambit[anaid]=ananame
+                    hasEntry = True
+                    continue
             if not hasEntry:
                 print ( f"we did not find an entry for {ananame}" )
                 
