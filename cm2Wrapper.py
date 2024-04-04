@@ -239,6 +239,7 @@ class CM2Wrapper:
         effs = {}
         nevents = -1
         SumOfWeights = -1
+        SumOfWeights2 = -1
         with open ( self.outputfile() ) as f:
             lines = f.readlines()
             for line in lines:
@@ -248,6 +249,9 @@ class CM2Wrapper:
                 if line.startswith(" SumOfWeights:"):
                     line = line.replace(" SumOfWeights:","").strip()
                     SumOfWeights = float ( line )
+                if line.startswith(" SumOfWeights2:"):
+                    line = line.replace(" SumOfWeights2:","").strip()
+                    SumOfWeights2 = float ( line )
                 if inSignalRegions:
                     tokens = line.split()
                     effs[tokens[0]] = float(tokens[3])
@@ -257,6 +261,7 @@ class CM2Wrapper:
 
             f.close()
         effs["__SumOfWeights__"]= SumOfWeights
+        effs["__SumOfWeights2__"]= SumOfWeights2
         effs["__nevents__"]= nevents
         return effs
 
