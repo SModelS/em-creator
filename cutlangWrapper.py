@@ -720,9 +720,15 @@ class CutLangWrapper:
         cla_path = os.path.join(self.adllhcanalyses, a_name.upper(), a_name.upper() + "*.adl")
         files = glob.glob ( cla_path )
         if len(files)>1:
-             self._msg ( f"Found several adl files for analysis {a_name}: {files}" )
-             self._msg ( f"Please implement a way to deal with this" )
-             raise Exception ( f"Found several adl files for analysis {a_name}: {files}" )
+            nresults = sum ( [ "results" in f for f in files ] )
+            if nresults == 1:
+                self._msg ( f"found several adl files but only one that says 'results'. will use" )
+                for f in files:
+                    if "results" in f:
+                        return os.path.abspath ( f )
+            self._msg ( f"Found several adl files for analysis {a_name}: {files}" )
+            self._msg ( f"Please implement a way to deal with this" )
+            raise Exception ( f"Found several adl files for analysis {a_name}: {files}" )
         if len(files)==0:
             line = f"found no adl file for analysis {a_name}"
             raise Exception ( line )
