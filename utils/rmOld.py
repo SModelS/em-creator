@@ -15,6 +15,7 @@ def rmOldTempFiles( hours=8, dry_run = False ):
     files += glob.glob ( "cutlang_results/*/ANA_*_*jet/temp/*hepmc" )
     files += glob.glob ( "cutlang_results/*/ANA_*_*jet/temp/" )
     files += glob.glob ( "cm2results/*" )
+    files += glob.glob ( "cm2tempdir/*" )
     t = time.time()
     random.shuffle ( files )
     ct = 0

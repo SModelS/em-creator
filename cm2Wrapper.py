@@ -213,7 +213,7 @@ class CM2Wrapper:
         self.checkInstallation()
         if not os.path.exists ( self.outputfile() ):
             self.createConfigFile ( masses, hepmcfile )
-            self.executeCheckMate()
+            self.executeCheckMate( masses )
         effs = self.extractEfficiencies()
         if len(effs)>0:
             ananame = bakeryHelpers.cm2AnaNameToSModelSName ( self.analyses )
@@ -224,7 +224,8 @@ class CM2Wrapper:
             self.tempFiles.append ( self.cm2results )
             self.tempFiles.append ( f"{self.cm2tempdir}/{self.instanceName}" )
         self.clean()
-        # self.unlock()
+        # should we free up that point?
+        # self.locker.unlock ( masses )
         return 0
 
     def extractEfficiencies ( self ):
@@ -274,7 +275,7 @@ class CM2Wrapper:
             ret = f"{self.cm2tempdir}/{self.instanceName}/analysis/myprocess_{self.analyses}_signal.dat"
         return ret
 
-    def executeCheckMate ( self ):
+    def executeCheckMate ( self, masses ):
         """ run checkmate! """
         run = subprocess.Popen( f'{self.executable} {self.configfile}',
                 shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)# ,cwd=checkmateBin)
@@ -286,6 +287,10 @@ class CM2Wrapper:
             self.info( f'   `   -- msg: {errorMsg}' )
             output = output.decode("UTF-8")
             self.info( f'CheckMATE output was:\n {output}\n' )
+            # self.info ( f'FileNotFound in errorMsg? {"FileNotFound" in errorMsg}' )
+            if "FileNotFound" in errorMsg:
+                self.info ( f'freeing the point {masses}. FIXME Hope this is a good idea' )
+                self.locker.unlock ( masses )
         # at this point we move the result from cm2tempdir to cm2results 
         bakeryHelpers.mkdir ( self.cm2results )
         if os.path.exists ( self.outputfile() ):

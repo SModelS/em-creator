@@ -60,7 +60,7 @@ class Locker:
 
     def isLocked ( self, masses ):
         """ a simple query if a point is locked, but does not lock itself. 
-        Orphaned lockfiles (4 hours after creation) get removed.
+        Orphaned lockfiles (3 hours after creation) get removed.
         """
         filename = self.lockfile( masses )
         if not os.path.exists ( filename ):
@@ -68,7 +68,7 @@ class Locker:
         m = os.stat ( filename )
         ## dt is time since creation, in hours
         dt = ( time.time () - m.st_ctime  ) / 60. / 60.
-        if dt > 4: # after 4 hours, remove lock
+        if dt > 3: # after 3 hours, remove lock
             self.unlock ( masses )
             return False
         return True
