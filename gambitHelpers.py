@@ -236,6 +236,7 @@ def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
 
 
 if __name__ == "__main__":
-    ret = getAnaIdFromArxivNr ( "1408.3583v1" )
+    ret = compileDictOfGambitAnalyses( "../gambit_2.4/" )
+    # ret = getAnaIdFromArxivNr ( "1408.3583v1" )
     # ret = scrapeCdsPage ( "https://cds.cern.ch/record/2267406" )
     print ( ret )
