@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 """
-.. module:: gambitWrapper
-        :synopsis: code that wraps around gambit/colliderbit
+.. module:: gambitHelpers
+        :synopsis: helper functions for interacting with gambit/colliderbit
 
 .. moduleauthor:: Wolfgang Waltenberger <wolfgang.waltenberger@gmail.com>
 """
