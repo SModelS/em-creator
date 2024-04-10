@@ -46,8 +46,7 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
 
     :param filename: e.g. Analysis_ATLAS_13TeV_2OSLEP_chargino_139invfb.cpp
     :returns: e.g. { 'gambit': 'ATLAS_13TeV_2OSLEP_chargino_139invfb',
-                     'anaid' : 'ATLAS-SUSY-2018-32' }. None if cannot extract
-                     anyting
+    'anaid' : 'ATLAS-SUSY-2018-32' }. None if cannot extract anything
     """
     dirname = os.path.dirname ( filename )
     ananame = filename.replace(".cpp","").replace(dirname,"").\
@@ -182,7 +181,7 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
 def getAnaIdFromArxivNr ( arxivnr : str ) -> str:
     """ given arxiv nr, get anaid, scrape it off the web.
     :param arxivnr: e.g. 1308.2631
-    :returns: e.g. ....
+    :returns: e.g. ATLAS-SUSY-2013-05
     """
     from urllib.request import urlopen
     url = f"https://arxiv.org/abs/{arxivnr}"
@@ -220,7 +219,10 @@ def getAnaIdFromArxivNr ( arxivnr : str ) -> str:
     return anaid
 
 def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
-    """ create a dictionaries of gambit analyses <-> analysis ids """
+    """ create a dictionary of gambit analyses names <-> analysis ids 
+
+    :param pathToGambit: path that should point to the gambit source directory
+    """
     import glob
     dirname = f"{pathToGambit}/ColliderBit/src/analyses/"
     files = glob.glob ( f"{dirname}/Analysis_*.cpp" )
@@ -237,6 +239,6 @@ def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
 
 if __name__ == "__main__":
     ret = compileDictOfGambitAnalyses( "../gambit_2.4/" )
-    # ret = getAnaIdFromArxivNr ( "1408.3583v1" )
+    # ret = getAnaIdFromArxivNr ( "1308.2631" )
     # ret = scrapeCdsPage ( "https://cds.cern.ch/record/2267406" )
     print ( ret )
