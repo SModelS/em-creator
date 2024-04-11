@@ -19,7 +19,9 @@ def install( ver : str = "2.4" ):
     :param ver: gambit version (eg 2.4)
     """
     if not "1.74.0-gcc-10.2.0" in os.environ["BOOST_ROOT"]:
-        print ( f"[gambitMake.py] you have not sourced gambit_env!" )
+        print ( f"[gambitMake.py] you have not sourced gambit_env! Perform:" )
+        print ( f"source utils/gambit_env.sh" )
+        sys.exit()
         cmd = "source utils/gambit_env.sh"
         execute ( cmd )
     if os.path.exists ( "gambit/CBS" ):
