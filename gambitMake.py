@@ -51,7 +51,7 @@ def install( ver : str = "2.4" ):
             nproc = max ( 1, runtime.nCPUs()-5 )
         except Exception as e:
             nproc = 1
-        make = 'make -j {nproc} CBS'
+        make = f'make -j {nproc} CBS'
         execute ( make )
 
 
