@@ -49,7 +49,7 @@ def install( ver : str = "2.4" ):
         os.chdir ( "build/" )
         configure = 'cmake .. -DWITH_HEPMC=ON -DWITH_YODA=ON -Ditch="NeutrinoBit;Mathematica;DarkBit;CosmoBit;FlavBit;ScanBit"'
         if "cbe.vbc.ac.at" in os.environ["HOSTNAME"]:
-            configure += f" -DEIGEN3_INCLUDE_DIR={os.environ['HOME']/git/eigen-3.4.0/}"
+            configure += f" -DEIGEN3_INCLUDE_DIR={os.environ['HOME']}/git/eigen-3.4.0/"
         execute ( configure )
         nproc = 1
         try:
