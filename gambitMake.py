@@ -48,7 +48,7 @@ def install( ver : str = "2.4" ):
         nproc = 1
         try:
             from smodels.base import runtime
-            nproc = max ( 1, runtime.nCPUs()-2 )
+            nproc = max ( 1, runtime.nCPUs()-5 )
         except Exception as e:
             nproc = 1
         make = 'make -j {nproc} CBS'
