@@ -1,5 +1,7 @@
 #!/bin/sh
 
+unset PYTHONPATH
+
 ml load build-env/f2021
 ml load python/3.8.6-gcccore-10.2.0
 # ml load eigen/3.3.8-gcccore-10.2.0
