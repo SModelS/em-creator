@@ -86,10 +86,12 @@ class GambitWrapper ( LoggerBase ):
         error = error.decode("UTF-8")
         self.debug ( f"@@ error >>>{error}<<<" )
         output = output.decode("UTF-8")
-        self.parseOutput ( output )
+        self.parseOutput ( output, error )
 
-    def parseOutput ( self, output : str ):
-        """ parse the output of the cbs run """
+    def parseOutput ( self, output : str, error : str ):
+        """ parse the output of the cbs run 
+        :param error: error output, only used if sth went wrong
+        """
         self.debug ( f"@@ output >>>{output}<<<" )
         lines = output.split("\n")
         stats = {}
@@ -128,13 +130,17 @@ class GambitWrapper ( LoggerBase ):
                 Y = float(tmp[:p2-1])
                 stats[srname]["Y"]=Y
                 stats[srname]["eff"]=Y/self.lumi
+        if srname is None:
+            self.error ( "did not find a single signal region. something went very wrong." )
+            self.error ( f"error msg: {error}" )
+            return
         stats["meta"]={ "timestamp": datetime.now().strftime('%Y-%m-%d_%H:%M:%S'), 
                         "nevents": ntot, "lumi": self.lumi }
         self.pprint ( f"writing results to {self.resultsFile}" )
         with open ( self.resultsFile, "wt" ) as f:
             f.write ( f"{stats}\n" )
             f.close()
-        # self.pprint ( f"stats {stats}" )
+        self.pprint ( f"stats {stats}" )
 
     def getYamlFileName ( self, masses ):
         """ get the yaml file name """

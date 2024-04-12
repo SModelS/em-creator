@@ -220,10 +220,12 @@ class emCreator:
         timestamp = d["meta"]["timestamp"]
         nevents = d["meta"]["nevents"]
         effs = {}
+        print ( f"@@0 d {d}" )
         for k,v in d.items():
             if k == "meta":
                 continue
             effs[k]=v["eff"]
+        print ( f"@@0 effs {effs}" )
         return { self.analyses: effs }, timestamp
 
     def extractMA5 ( self, masses ):
@@ -439,7 +441,7 @@ def createEmbakedFile( effs, topo, recast : str, tstamps, creator, copy,
                     st = datetime.fromtimestamp(t).strftime('%Y-%m-%d_%H:%M:%S') 
                 v["__t__"]=st
                     # v["__t__"]="?"
-                if not recast == "adl" and not "__nevents__" in v:
+                if not recast in [ "adl", "colliderbit" ] and not "__nevents__" in v:
                     v["__nevents__"]=creator.getNEvents ( k )
                 f.write ( "%s: %s, \n" % ( k,v ) )
             f.write ( "}\n" )
