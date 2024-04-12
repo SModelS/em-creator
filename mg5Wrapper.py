@@ -376,6 +376,8 @@ class MG5Wrapper:
                 self.runCutlang ( masses, analyses, pid )
             if "cm2" in self.recaster:
                 self.runCheckmate ( masses, analyses, pid )
+            if "colliderbit" in self.recaster:
+                self.runColliderbit ( masses, analyses, pid )
             if "MA5" in self.recaster:
                 self.runMA5 ( masses, analyses, pid )
         except Exception as e:
@@ -452,6 +454,29 @@ class MG5Wrapper:
                 msg += "error encountered"
             self.announce ( "%s for %s[%s] at %s%s" % ( msg, str(masses), self.topo, time.asctime(), spid ) )
 
+    def runColliderbit ( self, masses, analyses, pid ):
+        """ run colliderbit, if desired """
+        spid=""
+        if pid != None:
+            spid = f" in job #{pid}"
+        self.announce ( f"starting checkmate on {str(masses)}[{self.topo}] at {time.asctime()}{spid}" )
+        from gambitWrapper import GambitWrapper
+        rerun = self.rerun
+        # rerun = True
+        analist = analyses.split(",")
+        for ana in analist:
+            ana = ana.strip()
+            cl = GambitWrapper ( self.topo, self.njets, rerun, ana, 
+                                 keep = self.keep )
+            self.debug ( f"now call gambitWrapper for {ana}" )
+            hepmcfile = self.locker.hepmcFileName ( masses )
+            ret = cl.run ( masses, hepmcfile, pid )
+            msg = "finished MG5+colliderbit: "
+            if ret > 0:
+                msg += "nothing needed to be done"
+            if ret < 0:
+                msg += "error encountered"
+            self.announce ( f"{msg} for {str(masses)}[{self.topo}] at {time.asctime()}{spid}" )
 
     def unlink ( self, f ):
         """ remove a file, if keep is not true """
@@ -680,6 +705,8 @@ def main():
                              action="store_true" )
     argparser.add_argument ( '--checkmate', help='use checkmate instead of MA5',
                              action="store_true" )
+    argparser.add_argument ( '--colliderbit', help='use colliderbit instead of MA5',
+                             action="store_true" )
     argparser.add_argument ( '--adl_file', help='specify the name of the adl description to be used [if not specified, try to guess]',
                              type=str, default=None )
     argparser.add_argument ( '--event_condition', help='specify conditions on the events, filter out the rest, e.g. {"higgs":1}: one and only one higgs [None]',
@@ -730,7 +757,7 @@ def main():
             print ( f"[mg5Wrapper] for topo {args.topo} we set maxgap1 to 180." )
         args.maxgap1 = 180.
     if args.list_analyses:
-        bakeryHelpers.listAnalyses( args.cutlang, args.checkmate )
+        bakeryHelpers.listAnalyses( args.cutlang, args.checkmate, args.colliderbit )
         sys.exit()
     if args.show:
         import printProdStats
@@ -801,13 +828,21 @@ def main():
         sys.exit()
     nprocesses = bakeryHelpers.nJobs ( args.nprocesses, nm )
     recaster = [ "MA5" ]
-    if args.cutlang or args.checkmate:
+    if args.cutlang or args.checkmate or args.colliderbit:
         recaster = [ "adl" ]
         if args.checkmate:
             recaster = [ "cm2" ]
+        if args.colliderbit:
+            recaster = [ "colliderbit" ]
         args.recast = True
     if args.checkmate and args.cutlang:
         print ( "[mg5Wrapper] both checkmate and cutlang have been asked for. please choose!" )
+        sys.exit()
+    if args.checkmate and args.colliderbit:
+        print ( "[mg5Wrapper] both checkmate and colliderbit have been asked for. please choose!" )
+        sys.exit()
+    if args.cutlang and args.colliderbit:
+        print ( "[mg5Wrapper] both cutlang and colliderbit have been asked for. please choose!" )
         sys.exit()
 
     mg5 = MG5Wrapper( vars(args), recaster )
@@ -840,16 +875,6 @@ def main():
                 verbose=False, ma5=not args.cutlang, cutlang=args.cutlang, stats=True,
                 cleanup = False, checkmate=args.checkmate )
         emCreator.run ( args )
-    """
-    with open(logfile,"a") as f:
-        cmd = ""
-        for i,a in enumerate(sys.argv):
-            if i>0 and sys.argv[i-1] in [ "-m", "--masses" ]:
-                a='"%s"' % a
-            cmd += a + " "
-        cmd = cmd[:-1]
-        # f.write ( "[%s] %s: ended: %s\n" % ( hname, time.asctime(), cmd ) )
-    """
 
 if __name__ == "__main__":
     main()

@@ -59,7 +59,9 @@ def install( ver : str = "2.4" ):
             nproc = max ( 1, runtime.nCPUs()-5 )
         except Exception as e:
             nproc = 1
-        make = f'make -j {nproc} CBS'
+        targets = "CBS"
+        targets = "CBS nulike ATLAS_FullLikes"
+        make = f'make -j {nproc} {targets}'
         execute ( make )
 
 

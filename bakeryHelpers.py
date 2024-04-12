@@ -311,7 +311,7 @@ def sModelsName2cm2AnaName ( name : str ) -> str:
 def listAnalysesCutLang( ):
     """ list the analyses that are available in cutlang """
     dirname = "CutLang/ADLLHCanalyses/"
-    files = glob.glob ( "%s*" % dirname )
+    files = glob.glob ( f"{dirname}*" )
     print ( "List of ADL analyses:" )
     print ( "=====================" )
     for f in files:
@@ -320,12 +320,23 @@ def listAnalysesCutLang( ):
             continue
         print ( f )
 
-def listAnalyses ( cutlang : bool, checkmate : bool ):
+def listAnalysesColliderbit( ):
+    """ list the analyses that are available in colliderbit """
+    import gambitWrapper
+    print ( "List of colliderbit analyses:" )
+    print ( "=============================" )
+    wrapper = gambitWrapper.GambitWrapper()
+    wrapper.listAnalyses()
+
+def listAnalyses ( cutlang : bool, checkmate : bool, 
+                   colliderbit : bool ):
     """ list the analyses that are available in MA5 or cutlang """
     if cutlang:
         listAnalysesCutLang( )
     elif checkmate:
         listAnalysesCheckMATE( )
+    elif colliderbit:
+        listAnalysesColliderbit()
     else:
         listAnalysesMA5( )
 
