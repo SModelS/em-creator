@@ -506,7 +506,7 @@ def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts, reca
         masses = bakeryHelpers.getListOfMasses(topo, True, sqrts, recaster, analyses)
     else:
         masses = bakeryHelpers.parseMasses ( masses )
-    print ( f"[emCreator.runForTopo] {analyses}:{topo} masses={masses}" )
+    # print ( f"[emCreator.runForTopo] {analyses}:{topo} masses={masses}" )
 
     if masses == []:
         pass 
@@ -627,7 +627,6 @@ def getAllColliderBitTopos():
     for f in files:
         tokens = f.split(".")
         ret.add ( tokens[1] )
-    print ( f"@@@ getAllColliderBitTopos {ret}" )
     return list(ret)
 
 def getAllCm2Topos():
@@ -749,7 +748,7 @@ def getColliderbitListOfAnalyses() -> List:
     for f in files:
         tokens = f.split(".")
         t = tokens[0].replace("gambit_results/","")
-        ret.add ( tokens[0] )
+        ret.add ( t )
     return list(ret)
 
 def embakedFile ( ana : str, topo : str, recaster: list ):
@@ -812,7 +811,6 @@ def run ( args ):
             topos = getAllTopos ( recaster )
             topos = list(set(topos))
             topos.sort()
-            print ( "@@8 topos", topos )
         else:
             topos = args.topo
     if type(topos) in [ str ]:
