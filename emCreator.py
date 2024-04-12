@@ -13,6 +13,7 @@ from datetime import datetime
 import bakeryHelpers
 from colorama import Fore
 from typing import List, Tuple
+import gambitHelpers
 
 hasWarned = { "cutlangstats": False }
 
@@ -94,6 +95,24 @@ class emCreator:
         # import IPython ; IPython.embed(); sys.exit()
         return ret
 
+    def getColliderBitStatistics ( self, ana, SRs ) -> List:
+        """ obtain nobs, nb, etc from the colliderbit output
+        :param ana: analysis id, e.g. atlas_susy_2016_07
+        :param SRs: list of signal regions
+        """
+        ret = {}
+        files = glob.glob ( f"gambit_results/{ana}.*.eff" )
+        ## can take any, taking first
+        f = files[0]
+        with open ( f, "rt" ) as h:
+            D=eval(h.read())
+            h.close()
+        for k,v in D.items():
+            if k == "meta": 
+                continue
+            ret[k] = { "nobs": v["nobs"], "nb": v["nbg"], "deltanb": v["bgerr"] }
+        return ret
+
     def getStatistics ( self, ana = "atlas_susy_2016_07", SRs = {} ):
         ### obtain nobs, nb, etc from the PAD info files, e.g.
         ### ma5/tools/PAD/Build/SampleAnalyzer/User/Analyzer/atlas_susy_2016_07.info
@@ -101,6 +120,8 @@ class emCreator:
             return self.getCutlangStatistics ( ana, SRs )
         if "MA5" in self.recaster:
             return self.getMA5Statistics ( ana, SRs )
+        if "colliderbit" in self.recaster:
+            return self.getColliderBitStatistics ( ana, SRs )
 
     def getMA5Statistics ( self, ana : str, SR : dict = {} ):
         import xml.etree.ElementTree as ET
@@ -182,6 +203,29 @@ class emCreator:
             return self.extractCutlang ( masses )
         if "MA5" in self.recaster:
             return self.extractMA5 ( masses )
+        if "colliderbit" in self.recaster:
+            return self.extractColliderbit ( masses )
+
+    def extractColliderbit ( self, masses ) :
+        """ extract the efficiencies from colliderbit """
+        print ( f"@@@ extract colliderbit {masses} FIXME implement {self.analyses} {self.topo}" )
+        smasses = gambitHelpers.massesTupleToStr ( masses )
+        effFile = f"gambit_results/{self.analyses}.{self.topo}.{smasses}.eff"
+        if not os.path.exists ( effFile ):
+            print ( f"[emCreator] {effFile} does not exist!" )
+            return {}, "?"
+        f = open ( effFile, "rt" )
+        txt = f.read()
+        d = eval(txt)
+        f.close()
+        timestamp = d["meta"]["timestamp"]
+        nevents = d["meta"]["nevents"]
+        effs = {}
+        for k,v in d.items():
+            if k == "meta":
+                continue
+            effs[k]=v["eff"]
+        return { self.analyses: effs }, timestamp
 
     def extractMA5 ( self, masses ):
         """ extract the efficiencies from MA5 """
@@ -271,6 +315,14 @@ class emCreator:
                 c+=1
         return c
         return len(files)
+
+    def countRunningColliderbit ( self ):
+        files = glob.glob ( "temp/*.yaml" )
+        c = 0
+        for f in files:
+            if self.topo in f:
+                c+=1
+        return c
 
     def countRunningCutlang ( self ):
         """ count the number of cutlang directories """
@@ -383,7 +435,10 @@ def createEmbakedFile( effs, topo, recast : str, tstamps, creator, copy,
                 if t== None:
                     # print ( f"[emCreator] key {k} not in timestamps" )
                     t = time.time()
-                v["__t__"]=datetime.fromtimestamp(t).strftime('%Y-%m-%d_%H:%M:%S')
+                st = t
+                if type(t)==float:
+                    st = datetime.fromtimestamp(t).strftime('%Y-%m-%d_%H:%M:%S') 
+                v["__t__"]=st
                     # v["__t__"]="?"
                 if not recast == "adl" and not "__nevents__" in v:
                     v["__nevents__"]=creator.getNEvents ( k )
@@ -401,7 +456,7 @@ def createEmbakedFile( effs, topo, recast : str, tstamps, creator, copy,
         stats = creator.getStatistics ( ana, SRs )
         # print ( "[emCreator] obtained statistics for", ana, "in", fname )
         if copy:
-            extensions = [ "ma5", "eff", "adl" ]
+            extensions = [ "ma5", "eff", "adl", "colliderbit" ]
             foundExtension = None
             for e in extensions:
                 Dirname = f"../smodels-database/{sqrts}TeV/{experiment}/{sana}-{e}/orig/"
@@ -417,7 +472,7 @@ def createEmbakedFile( effs, topo, recast : str, tstamps, creator, copy,
             statsfile = "./statsEM.py"
             creator.writeStatsFile ( statsfile, stats )
         if copy and os.path.exists (Dirname):
-            dest = "%s/%s.embaked" % ( Dirname, topo )
+            dest = f"{Dirname}/{topo}.embaked"
             prevN = 0
             if os.path.exists (dest ):
                 f=open(dest,"r")
@@ -450,7 +505,8 @@ def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts, reca
         masses = bakeryHelpers.getListOfMasses(topo, True, sqrts, recaster, analyses)
     else:
         masses = bakeryHelpers.parseMasses ( masses )
-    # print ( f"[emCreator.runForTopo] {analyses}:{topo} masses={masses}" )
+    print ( f"[emCreator.runForTopo] {analyses}:{topo} masses={masses}" )
+
     if masses == []:
         pass 
         # return 0
@@ -460,7 +516,7 @@ def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts, reca
     creator = emCreator( analyses, topo, njets, keep, sqrts, recaster )
     effs,tstamps={},{}
     if verbose:
-        print ( "[emCreator] topo %s: %d mass points considered" % ( topo, len(masses) ) )
+        print ( f"[emCreator] topo {topo}: {len(masses)} mass points considered" )
     for m in masses:
         eff,t = creator.extract( m )
         for k,v in eff.items():
@@ -483,6 +539,8 @@ def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts, reca
         nrecasts["MA5"] = creator.countRunningMA5 ( )
     if "cm2" in recaster:
         nrecasts["cm2"] = creator.countRunningCm2 ( )
+    if "colliderbit" in recaster:
+        nrecasts["colliderbit"] = creator.countRunningColliderbit ( )
     nre = sum ( nrecasts.values() )
     nall = nmg5 + nrmg5 + nre
     line = f"[emCreator] {topo}: {nmg5} mg5 points, {nrmg5} running mg5 jobs"
@@ -528,6 +586,8 @@ def getAllTopos ( recaster ):
         ret += getAllMA5Topos()
     if "cm2" in recaster:
         ret += getAllCm2Topos()
+    if "colliderbit" in recaster:
+        ret += getAllColliderBitTopos()
     ret = list(set(ret))
     return ret
 
@@ -559,6 +619,14 @@ def getAllMA5Topos():
     ret = list(ret)
     ret.sort()
     return ret
+
+def getAllColliderBitTopos():
+    ret = set()
+    files = glob.glob ( "gambit_results/*.eff" )
+    for f in files:
+        tokens = f.split(".")
+        ret.add ( tokens[1] )
+    return list(ret)
 
 def getAllCm2Topos():
     filenames="cm2results/*/fritz/myprocess.ini"
@@ -671,6 +739,15 @@ def getCm2ListOfAnalyses() -> List:
     # ret = ",".join ( tokens )
     return list(tokens)
 
+def getColliderbitListOfAnalyses() -> List:
+    """ compile list of colliderbit analyses """
+    ## FIXME sure we dont want to dig into gambitdict here?
+    ret = set()
+    files = glob.glob ( "gambit_results/*.eff" )
+    for f in files:
+        tokens = f.split(".")
+        ret.add ( tokens[0] )
+    return list(ret)
 
 def embakedFile ( ana : str, topo : str, recaster: list ):
     """ return the content of the embaked file """
@@ -686,19 +763,22 @@ def embakedFile ( ana : str, topo : str, recaster: list ):
 
 def run ( args ):
     analyses = args.analyses
-    recaster = [ "MA5", "cm2", "adl" ]
+    recaster = [ "MA5", "cm2", "adl", "colliderbit" ]
     if args.cutlang:
         recaster = [ "adl" ]
     if args.ma5:
         recaster = [ "MA5" ]
     if args.checkmate:
         recaster = [ "cm2" ]
+    if args.colliderbit:
+        recaster = [ "colliderbit" ]
     ntot, ntotembaked = 0, 0
     files = glob.glob ( "embaked/*embaked" )
     files.sort()
     for fname in files:
         f=open(fname,"rt")
         txt=f.read()
+        print ( f"@@parsing {fname}" )
         try:
             D=eval(txt)
         except Exception as e:
@@ -721,6 +801,8 @@ def run ( args ):
                 tmp += getMA5ListOfRunningAnalyses( args.topo, args.njets )
             if recast == "cm2":
                 tmp = getCm2ListOfAnalyses()
+            if recast == "colliderbit":
+                tmp = getColliderbitListOfAnalyses()
             for t in tmp:
                 analyses.append ( t.upper().replace("_","-") )
 
@@ -775,6 +857,8 @@ def main():
     argparser.add_argument ( '-C', '--cleanup', help='cleanup most temporary files after running, like the saf and dat files of ma5',
                              action="store_true" )
     argparser.add_argument ( '-l', '--cutlang', help='cutlang only results',
+                             action="store_true" )
+    argparser.add_argument ( '--colliderbit', help='colliderbit only results',
                              action="store_true" )
     argparser.add_argument ( '--checkmate', help='checkmate2 only results',
                              action="store_true" )

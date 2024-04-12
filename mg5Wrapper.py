@@ -873,7 +873,7 @@ def main():
         args = SimpleNamespace ( masses="all", topo=args.topo, njets=args.njets, \
                 analyses = analyses, copy=args.copy, keep=args.keep, sqrts=args.sqrts,
                 verbose=False, ma5=not args.cutlang, cutlang=args.cutlang, stats=True,
-                cleanup = False, checkmate=args.checkmate )
+                cleanup = False, checkmate=args.checkmate, colliderbit = args.colliderbit )
         emCreator.run ( args )
 
 if __name__ == "__main__":

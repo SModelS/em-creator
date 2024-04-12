@@ -8,7 +8,7 @@ settings:
   debug: true
   seed: -1
   event_file: @@HEPMCFILE@@
-  cross_section_pb: 1.0
+  cross_section_pb: 0.001 # 1 fb
   cross_section_fractional_uncert: 0.2
   use_lognormal_distribution_for_1d_systematic: true
   events_between_convergence_checks: 5000

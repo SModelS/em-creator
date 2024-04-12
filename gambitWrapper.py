@@ -8,6 +8,7 @@
 """
 
 import os, subprocess, shutil
+from datetime import datetime
 from os import PathLike
 import gambitHelpers
 import bakeryHelpers
@@ -20,6 +21,9 @@ class GambitWrapper ( LoggerBase ):
             ana = None, keep = False, sqrts = 13,
             pathToGambit = "./gambit_2.4/", keephepmc=True ):
         super(GambitWrapper, self).__init__ ( 0 )
+        if pathToGambit.endswith("/"):
+            pathToGambit = pathToGambit[:-1]
+        self.pathToGambit = pathToGambit
         self.retrieveAnalysesDictionary()
         self.topo = topo
         self.keephepmc = keephepmc
@@ -32,12 +36,16 @@ class GambitWrapper ( LoggerBase ):
         self.basedir = bakeryHelpers.baseDir()
         self.tempdir = bakeryHelpers.tempDir()
         self.templateDir = os.path.join(self.basedir, "templates/")
-        if pathToGambit.endswith("/"):
-            pathToGambit = pathToGambit[:-1]
-        self.pathToGambit = pathToGambit
         self.tempFiles = []
         self.locker = locker.Locker ( sqrts, topo, False )
         self.gambitAna = self.idToGambit[self.ana]
+        self.lumi = self.sqrtsOfGambit[self.gambitAna]
+        self.mkResultsDir()
+
+    def mkResultsDir ( self ):
+        self.resultsdir = "./gambit_results/"
+        if not os.path.exists ( self.resultsdir ):
+            os.mkdir ( self.resultsdir )
 
     def clean ( self ):
         if self.keep:
@@ -61,7 +69,9 @@ class GambitWrapper ( LoggerBase ):
         hepmczipfile = self.locker.hepmcFileName ( masses )
         hepmcfile = self.gunzipHepmcFile ( hepmczipfile )
         self.createYamlFile( masses, hepmcfile )
-        self.runCBS ()
+        if not os.path.exists ( self.resultsFile ) or \
+                 os.stat ( self.resultsFile ).st_size < 10:
+            self.runCBS ()
         self.clean()
         return 0
 
@@ -82,7 +92,7 @@ class GambitWrapper ( LoggerBase ):
         self.debug ( f"@@ output >>>{output}<<<" )
         lines = output.split("\n")
         stats = {}
-        srindex = None
+        srname = None
         ntot = None ## number of events in hepmc file.
         ## fixme not sure this is the right denominator.
         for line in lines:
@@ -95,28 +105,41 @@ class GambitWrapper ( LoggerBase ):
                 p1 = line.find( "SR index" )
                 tmp = line[p1+9:-2]
                 srindex = int ( tmp )
-                stats[srindex]={}
+                srname = f"SR{srindex}"
+                stats[srname]={}
             if "Observed events:" in line:
                 p1 = line.find ( "Observed events:" )
                 tmp = line [ p1+17:]
                 nobs = int ( tmp )
-                stats[srindex]["nobs"]=nobs
+                stats[srname]["nobs"]=nobs
             if "SM prediction:" in line:
                 p1 = line.find ( "SM prediction:" )
                 tmp = line [ p1+15:]
                 p2 = tmp.find ( "+/-" )
                 nbg = tmp[:p2]
                 bgerr = tmp[p2+4:] 
-                stats[srindex]["nbg"]=float(nbg)
-                stats[srindex]["bgerr"]=float(bgerr)
+                stats[srname]["nbg"]=float(nbg)
+                stats[srname]["bgerr"]=float(bgerr)
             if "Signal prediction:" in line:
                 p1 = line.find ( "Signal prediction:" )
                 tmp = line [ p1+19:]
                 p2 = tmp.find ( "+/-" )
                 Y = float(tmp[:p2-1])
-                stats[srindex]["Y"]=Y
-                stats[srindex]["eff"]=Y/ntot
-        self.pprint ( f"stats {stats}" )
+                stats[srname]["Y"]=Y
+                stats[srname]["eff"]=Y/self.lumi
+        stats["meta"]={ "timestamp": datetime.now().strftime('%Y-%m-%d_%H:%M:%S'), 
+                        "nevents": ntot, "lumi": self.lumi }
+        self.pprint ( f"writing results to {self.resultsFile}" )
+        with open ( self.resultsFile, "wt" ) as f:
+            f.write ( f"{stats}\n" )
+            f.close()
+        # self.pprint ( f"stats {stats}" )
+
+    def getYamlFileName ( self, masses ):
+        """ get the yaml file name """
+        smasses = gambitHelpers.massesTupleToStr ( masses )
+        self.yamlFile  = f"{self.tempdir}/{self.ana}.{self.topo}.{smasses}.yaml"
+        self.resultsFile  = f"{self.resultsdir}/{self.ana}.{self.topo}.{smasses}.eff"
 
     def gunzipHepmcFile ( self, hepmcfile : PathLike ) -> PathLike:
         """ given a zipped hepmc file, gunzip it, return path
@@ -141,11 +164,9 @@ class GambitWrapper ( LoggerBase ):
         f = open ( f"{self.templateDir}gambit.yaml" )
         lines = f.readlines()
         f.close()
-        smasses = str(masses).replace("(","").replace(")","").replace(" ","").\
-                  replace(",","_")
-        self.yamlFile  = f"{self.tempdir}/{self.ana}.{self.topo}.{smasses}.yaml"
+        self.getYamlFileName ( masses )
         self.tempFiles.append ( self.yamlFile )
-        self.pprint ( f"writing into {self.yamlFile}" )
+        self.pprint ( f"writing config to: {self.yamlFile}" )
         f = open ( self.yamlFile, "wt" )
         for line in lines:
             line = line.replace ( "@@HEPMCFILE@@", hepmcfile )
@@ -168,6 +189,7 @@ class GambitWrapper ( LoggerBase ):
         d = gambitHelpers.compileDictOfGambitAnalyses ( self.pathToGambit )
         self.gambitToId = d["gambitToId"]
         self.idToGambit = d["idToGambit"]
+        self.sqrtsOfGambit = d["sqrtsOfGambit"]
 
     def retrieveAnalysesDictionary ( self ):
         """ retrieve the analysis dictionary. from cache file if exists,
@@ -179,10 +201,11 @@ class GambitWrapper ( LoggerBase ):
                 d = eval(txt)
                 self.gambitToId = d["gambitToId"]
                 self.idToGambit = d["idToGambit"]
+                self.sqrtsOfGambit = d["sqrtsOfGambit"]
                 return
         self.compileAnalysesDictionary()
         with open ( cachefile, "wt" ) as f:
-            f.write ( f"{{ 'gambitToId': {self.gambitToId}, 'idToGambit': {self.idToGambit} }}\n" )
+            f.write ( f"{{ 'gambitToId': {self.gambitToId}, 'idToGambit': {self.idToGambit}, 'sqrtsOfGambit': {self.sqrtsOfGambit} }}\n" )
             f.close()
 
 if __name__ == "__main__":

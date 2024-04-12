@@ -456,6 +456,8 @@ def getListOfMasses(topo, postMA5=False, sqrts=13, recaster=[], ana=None ):
         ret += getListOfMA5Masses ( topo, sqrts, ana )
     if "cm2" in recaster:
         ret += getListOfCm2Masses ( topo, sqrts, ana )
+    if "colliderbit" in recaster:
+        ret += getListOfColliderBitMasses ( topo, sqrts, ana )
     return ret
 
 def createSlurmLink():
@@ -553,6 +555,16 @@ def getListOfMA5Masses ( topo, sqrts, ana ):
         f = f[:p1]
         masses = tuple(map(int,map(float,f.split("_"))))
         ret.append ( masses )
+    return ret
+
+def getListOfColliderBitMasses ( topo, sqrts, ana ):
+    """ get all collider bit masses """
+    files = glob.glob ( f"gambit_results/{ana}.{topo}.*.eff" )
+    ret=[]
+    for f in files:
+        tokens = f.split ( "." )
+        masses = map ( int , tokens[2].split("_")  )
+        ret.append ( tuple(masses) )
     return ret
 
 def getListOfCm2Masses ( topo, sqrts, ana ):

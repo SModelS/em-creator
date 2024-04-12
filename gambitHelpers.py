@@ -61,20 +61,29 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
     lines = h.readlines()
     h.close()
     for line in lines:
+        if "set_luminosity" in line:
+            p1 = line.find ( "set_luminosity" )
+            tmp = line[p1+15:]
+            tmp = tmp.replace(")","").replace(";","")
+            ret["sqrts"]=float(tmp)
+            if "anaid" in ret:
+                return ret
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/PAPERS" in line:
             p1 = line.find ( "PHYSICS/PAPERS" )
             anaid = line[p1+15:]
             p2 = anaid.find("/")
             anaid = "ATLAS-"+anaid[:p2]
             ret["anaid"] = anaid
-            return ret
+            if "sqrts" in ret:
+                return ret
         if "cms-results.web.cern.ch/cms-results/public-results/publications" in line:
             p1 = line.find ( "results/publications" )
             anaid = line[p1+21:]
             p2 = anaid.find("/")
             anaid = "CMS-"+anaid[:p2]
             ret["anaid"]=anaid
-            return ret
+            if "sqrts" in ret:
+                return ret
     for line in lines:
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
             p1 = line.find ( "PHYSICS/CONFNOTES" )
@@ -82,28 +91,32 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             p2 = anaid.find("/")
             anaid = anaid[:p2]
             ret["anaid"]=anaid
-            return ret
+            if "sqrts" in ret:
+                return ret
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
             p1 = line.find ( "PHYSICS/CONFNOTES" )
             anaid = line[p1+18:]
             p2 = anaid.find("/")
             anaid = anaid[:p2]
             ret["anaid"]=anaid
-            return ret
+            if "sqrts" in ret:
+                return ret
         if "cms-results.web.cern.ch/cms-results/public-results/superseded" in line:
             p1 = line.find ( "results/superseded" )
             anaid = line[p1+19:]
             p2 = anaid.find("/")
             anaid = "CMS-"+anaid[:p2]
             ret["anaid"]=anaid
-            return ret
+            if "sqrts" in ret:
+                return ret
         if "cms-results.web.cern.ch/cms-results/public-results/preliminary-results" in line:
             p1 = line.find ( "results/preliminary-results" )
             anaid = line[p1+28:]
             p2 = anaid.find("/")
             anaid = "CMS-PAS-"+anaid[:p2]
             ret["anaid"]=anaid
-            return ret
+            if "sqrts" in ret:
+                return ret
         if "arxiv:" in line or "arXiv:" in line:
             line = line.lower()
             p1 = line.find ( "arxiv:" )
@@ -117,7 +130,8 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             if len(arxivnr)>0:
                 anaid = getAnaIdFromArxivNr ( arxivnr )
                 ret["anaid"]=anaid
-                return ret
+                if "sqrts" in ret:
+                    return ret
         if "arxiv.org" in line:
             line = line.lower()
             line = line.replace( "abs/","" ).replace("pdf/","")
@@ -132,21 +146,24 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             if len(arxivnr)>0:
                 anaid = getAnaIdFromArxivNr ( arxivnr )
                 ret["anaid"]=anaid
-                return ret
+                if "sqrts" in ret:
+                    return ret
         findArxivNrs = re.findall ( r" \d\d\d\d.\d\d\d\d\d", line )
         if len(findArxivNrs)>0:
             arxivnr = findArxivNrs[0][1:]
             if len(arxivnr)>0:
                 anaid = getAnaIdFromArxivNr ( arxivnr )
                 ret["anaid"]=anaid
-                return ret
+                if "sqrts" in ret:
+                    return ret
         findArxivNrs = re.findall ( r" \d\d\d\d.\d\d\d\d", line )
         if len(findArxivNrs)>0:
             arxivnr = findArxivNrs[0][1:]
             if len(arxivnr)>0:
                 anaid = getAnaIdFromArxivNr ( arxivnr )
                 ret["anaid"]=anaid
-                return ret
+                if "sqrts" in ret:
+                    return ret
         if "cds.cern.ch/record" in line:
             p1 = line.find("https://")
             if p1 == -1:
@@ -158,14 +175,16 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
                 url = url[:p1-1]
             anaid = scrapeCdsPage ( url )
             ret["anaid"]=anaid
-            return ret
+            if "sqrts" in ret:
+                return ret
         if "ATLAS-" in line:
             p1 = line.find( "ATLAS-" )
             token = line[p1:]
             token = token.strip()
             anaid = token
             ret["anaid"]=anaid
-            return ret
+            if "sqrts" in ret:
+                return ret
         if "twiki.cern.ch/twiki/bin/view/CMSPublic/PhysicsResults" in line:
             p1 = line.find("PhysicsResults")
             token = "CMS-"+line[p1+14:]
@@ -174,7 +193,8 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             token = token.replace("1400","14-00")
             anaid = token.strip()
             ret["anaid"]=anaid
-            return ret
+            if "sqrts" in ret:
+                return ret
     print ( f"[gambitHelpers] we did not find an entry for {ananame}" )
     return None
 
@@ -218,6 +238,12 @@ def getAnaIdFromArxivNr ( arxivnr : str ) -> str:
     # print ( f"@@A getAnaIdFromArxivNr {arxivnr}: {anaid}" )
     return anaid
 
+def massesTupleToStr ( masses : tuple ) -> str:
+    """ very simple helper: (700,700,100) -> 700_700_100 """
+    smasses = str(masses).replace("(","").replace(")","").replace(" ","").\
+              replace(",","_")
+    return smasses
+
 def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
     """ create a dictionary of gambit analyses names <-> analysis ids 
 
@@ -228,13 +254,16 @@ def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
     files = glob.glob ( f"{dirname}/Analysis_*.cpp" )
     gambitToId = {}
     idToGambit = {}
+    sqrtsOfGambit = {}
     for f in files:
         names = getAnalysisIdFor ( f )
         if names == None:
             continue
         gambitToId[ names["gambit"] ] = names["anaid"]
         idToGambit[ names["anaid"] ] = names["gambit"]
-    return { "gambitToId": gambitToId, "idToGambit": idToGambit }
+        sqrtsOfGambit[ names["gambit"] ] = names["sqrts"]
+    return { "gambitToId": gambitToId, "idToGambit": idToGambit,
+             "sqrtsOfGambit": sqrtsOfGambit }
 
 
 if __name__ == "__main__":
