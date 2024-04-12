@@ -14,10 +14,16 @@ def execute ( cmd : str ):
     errorMsg = errorMsg.decode("UTF-8")
     output = output.decode("UTF-8")
 
+def install_eigen ( ):
+    """ download, unzip, and build eigen. """
+    url = "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz"
+    print ( "FIXME implement!!" )
+
 def install( ver : str = "2.4" ):
     """
     :param ver: gambit version (eg 2.4)
     """
+    install_eigen()
     if "HOSTNAME" in os.environ and "cbe.vbc.ac.at" in os.environ["HOSTNAME"]:
         if not "1.74.0-gcc-10.2.0" in os.environ["BOOST_ROOT"]:
             print ( f"[gambitMake.py] you have not sourced gambit_env! Perform:" )
@@ -52,8 +58,15 @@ def install( ver : str = "2.4" ):
         os.chdir ( "build/" )
         configure = 'cmake .. -DWITH_HEPMC=ON -DWITH_YODA=ON -Ditch="NeutrinoBit;Mathematica;DarkBit;CosmoBit;FlavBit;ScannerBit;SpecBit;DecayBit;ScanBit;PrecisionBit;ObjectivesBit"'
         if "HOSTNAME" in os.environ and "cbe.vbc.ac.at" in os.environ["HOSTNAME"]:
-            configure += f" -DEIGEN3_INCLUDE_DIR={os.environ['HOME']}/git/eigen-3.4.0/"
+            configure += f" -DEIGEN3_INCLUDE_DIR={os.environ['HOME']}/git/em-creator/eigen-3.4.0/"
         execute ( configure )
+        configurescript = "configure_gambit.sh"
+        with open ( configurescript, "wt" ) as f:
+            f.write ( "#!/bin/sh\n" )
+            f.write ( "\n" )
+            f.write ( configure + "\n" )
+            f.close()
+        os.chmod ( configurescript, 0o775 )
         nproc = 1
         try:
             from smodels.base import runtime
@@ -64,7 +77,13 @@ def install( ver : str = "2.4" ):
         targets = "CBS nulike ATLAS_FullLikes"
         make = f'make -j {nproc} {targets}'
         execute ( make )
-
+        makescript = "make_gambit.sh"
+        with open ( makeescript, "wt" ) as f:
+            f.write ( "#!/bin/sh\n" )
+            f.write ( "\n" )
+            f.write ( make + "\n" )
+            f.close()
+        os.chmod ( makescript, 0o775 )
 
 def clean():
     print ( "[gambitMake.py] cleaning up ... " )
