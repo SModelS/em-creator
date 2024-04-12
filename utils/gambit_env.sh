@@ -11,4 +11,4 @@ ml load lapack/3.9.1-gcc-10.2.0
 ml load boost/1.74.0-gcc-10.2.0
 
 # we also need these python modules:
-# pip install pyyaml pyhf
+# pip install numpy pyyaml pyhf
