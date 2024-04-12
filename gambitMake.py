@@ -18,12 +18,13 @@ def install( ver : str = "2.4" ):
     """
     :param ver: gambit version (eg 2.4)
     """
-    if not "1.74.0-gcc-10.2.0" in os.environ["BOOST_ROOT"]:
-        print ( f"[gambitMake.py] you have not sourced gambit_env! Perform:" )
-        print ( f"source utils/gambit_env.sh" )
-        sys.exit()
-        cmd = "source utils/gambit_env.sh"
-        execute ( cmd )
+    if "HOSTNAME" in os.environ and "cbe.vbc.ac.at" in os.environ["HOSTNAME"]:
+        if not "1.74.0-gcc-10.2.0" in os.environ["BOOST_ROOT"]:
+            print ( f"[gambitMake.py] you have not sourced gambit_env! Perform:" )
+            print ( f"source utils/gambit_env.sh" )
+            sys.exit()
+            #cmd = "source utils/gambit_env.sh"
+            #execute ( cmd )
     if os.path.exists ( "gambit/CBS" ):
         print ( "[gambitMake.py] everything seems to be installed. Remove gambit/ to trigger a reinstall" )
         return
@@ -49,8 +50,8 @@ def install( ver : str = "2.4" ):
         cmd = "mkdir build"
         o = subprocess.getoutput ( cmd )
         os.chdir ( "build/" )
-        configure = 'cmake .. -DWITH_HEPMC=ON -DWITH_YODA=ON -Ditch="NeutrinoBit;Mathematica;DarkBit;CosmoBit;FlavBit;ScanBit"'
-        if "cbe.vbc.ac.at" in os.environ["HOSTNAME"]:
+        configure = 'cmake .. -DWITH_HEPMC=ON -DWITH_YODA=ON -Ditch="NeutrinoBit;Mathematica;DarkBit;CosmoBit;FlavBit;ScannerBit;SpecBit;DecayBit;ScanBit;PrecisionBit;ObjectivesBit"'
+        if "HOSTNAME" in os.environ and "cbe.vbc.ac.at" in os.environ["HOSTNAME"]:
             configure += f" -DEIGEN3_INCLUDE_DIR={os.environ['HOME']}/git/eigen-3.4.0/"
         execute ( configure )
         nproc = 1

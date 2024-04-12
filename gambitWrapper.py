@@ -36,7 +36,7 @@ class GambitWrapper ( LoggerBase ):
         self.basedir = bakeryHelpers.baseDir()
         self.tempdir = bakeryHelpers.tempDir()
         self.templateDir = os.path.join(self.basedir, "templates/")
-        self.tempFiles = []
+        self.tempFiles = [ "CBS_logs/" ]
         self.locker = locker.Locker ( sqrts, topo, False )
         self.gambitAna = self.idToGambit[self.ana]
         self.lumi = self.sqrtsOfGambit[self.gambitAna]
