@@ -459,7 +459,7 @@ class MG5Wrapper:
         spid=""
         if pid != None:
             spid = f" in job #{pid}"
-        self.announce ( f"starting checkmate on {str(masses)}[{self.topo}] at {time.asctime()}{spid}" )
+        self.announce ( f"starting colliderbit on {str(masses)}[{self.topo}] at {time.asctime()}{spid}" )
         from gambitWrapper import GambitWrapper
         rerun = self.rerun
         # rerun = True
