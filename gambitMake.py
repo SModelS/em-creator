@@ -59,6 +59,8 @@ def install( ver : str = "2.4" ):
         configure = 'cmake .. -DWITH_HEPMC=ON -DWITH_YODA=ON -Ditch="NeutrinoBit;Mathematica;DarkBit;CosmoBit;FlavBit;ScannerBit;SpecBit;DecayBit;ScanBit;PrecisionBit;ObjectivesBit"'
         if "HOSTNAME" in os.environ and "cbe.vbc.ac.at" in os.environ["HOSTNAME"]:
             configure += f" -DEIGEN3_INCLUDE_DIR={os.environ['HOME']}/git/em-creator/eigen-3.4.0/"
+        if False:
+            configure += " -DCMAKE_BUILD_TYPE=Release"
         execute ( configure )
         configurescript = "configure_gambit.sh"
         with open ( configurescript, "wt" ) as f:
