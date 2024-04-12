@@ -208,7 +208,6 @@ class emCreator:
 
     def extractColliderbit ( self, masses ) :
         """ extract the efficiencies from colliderbit """
-        print ( f"@@@ extract colliderbit {masses} FIXME implement {self.analyses} {self.topo}" )
         smasses = gambitHelpers.massesTupleToStr ( masses )
         effFile = f"gambit_results/{self.analyses}.{self.topo}.{smasses}.eff"
         if not os.path.exists ( effFile ):
@@ -471,6 +470,8 @@ def createEmbakedFile( effs, topo, recast : str, tstamps, creator, copy,
         if create_stats:
             statsfile = "./statsEM.py"
             creator.writeStatsFile ( statsfile, stats )
+            statsfile = f"./stats_{ana}.py"
+            creator.writeStatsFile ( statsfile, stats )
         if copy and os.path.exists (Dirname):
             dest = f"{Dirname}/{topo}.embaked"
             prevN = 0
@@ -626,6 +627,7 @@ def getAllColliderBitTopos():
     for f in files:
         tokens = f.split(".")
         ret.add ( tokens[1] )
+    print ( f"@@@ getAllColliderBitTopos {ret}" )
     return list(ret)
 
 def getAllCm2Topos():
@@ -746,6 +748,7 @@ def getColliderbitListOfAnalyses() -> List:
     files = glob.glob ( "gambit_results/*.eff" )
     for f in files:
         tokens = f.split(".")
+        t = tokens[0].replace("gambit_results/","")
         ret.add ( tokens[0] )
     return list(ret)
 
@@ -778,7 +781,6 @@ def run ( args ):
     for fname in files:
         f=open(fname,"rt")
         txt=f.read()
-        print ( f"@@parsing {fname}" )
         try:
             D=eval(txt)
         except Exception as e:
@@ -810,11 +812,11 @@ def run ( args ):
             topos = getAllTopos ( recaster )
             topos = list(set(topos))
             topos.sort()
+            print ( "@@8 topos", topos )
         else:
             topos = args.topo
     if type(topos) in [ str ]:
         topos = [ topos ]
-    # print ( "topos", topos, "anas", analyses )
     for topo in topos:
         printLine = True
         for ana in analyses:
