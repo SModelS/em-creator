@@ -38,8 +38,9 @@ class GambitWrapper ( LoggerBase ):
         self.templateDir = os.path.join(self.basedir, "templates/")
         self.tempFiles = [ "CBS_logs/" ]
         self.locker = locker.Locker ( sqrts, topo, False )
-        self.gambitAna = self.idToGambit[self.ana]
-        self.lumi = self.sqrtsOfGambit[self.gambitAna]
+        if self.ana in self.idToGambit:
+            self.gambitAna = self.idToGambit[self.ana]
+            self.lumi = self.sqrtsOfGambit[self.gambitAna]
         self.mkResultsDir()
 
     def mkResultsDir ( self ):
