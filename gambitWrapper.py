@@ -43,6 +43,22 @@ class GambitWrapper ( LoggerBase ):
             self.lumi = self.sqrtsOfGambit[self.gambitAna]
         self.mkResultsDir()
 
+    def onClipCluster ( self ):
+        """ are we running on the clip cluster? """
+        if not "HOSTNAME" in os.environ:
+            return False
+        if "cbe.vbc.ac.at" in os.environ["HOSTNAME"]:
+            return True
+        return False
+
+    def hasSourcedEnvironment ( self ):
+        """ on the clip cluster, has the gambit environment been sourced already? """
+        if not "BOOST_ROOT" in os.environ:
+            return False
+        if "1.74.0" in os.environ["BOOST_ROOT"]:
+            return True
+        return False
+
     def mkResultsDir ( self ):
         self.resultsdir = "./gambit_results/"
         if not os.path.exists ( self.resultsdir ):
@@ -79,6 +95,9 @@ class GambitWrapper ( LoggerBase ):
     def runCBS ( self ):
         """ now, actually run colliderbit solo. """
         cmd = f"./CBS {self.yamlFile}"
+        if self.onClipCluster() and not \
+                self.hasSourcedEnvironment(): ## source the environment
+            cmd = f"source ../utils/gambit_env.sh; {cmd}"
         self.pprint ( f"now run {cmd}" )
         run = subprocess.Popen ( cmd, shell=True, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE, cwd = self.pathToGambit )
