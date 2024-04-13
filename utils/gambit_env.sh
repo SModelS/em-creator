@@ -12,3 +12,5 @@ ml load boost/1.74.0-gcc-10.2.0
 
 # we also need these python modules:
 # pip install numpy pyyaml pyhf
+
+export PYTHONPATH=/users/wolfgan.waltenberger/.local/lib/python3.8/site-packages:$PYTHONPATH

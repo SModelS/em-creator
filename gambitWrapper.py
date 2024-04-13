@@ -108,7 +108,8 @@ class GambitWrapper ( LoggerBase ):
                 p1 = line.find( "SR index" )
                 tmp = line[p1+9:-2]
                 srindex = int ( tmp )
-                srname = f"SR{srindex}"
+                ## srname = f"SR{srindex}" ## FIXME 0-indexed or 1-indexed?
+                srname = f"SR{srindex+1}"
                 stats[srname]={}
             if "Observed events:" in line:
                 p1 = line.find ( "Observed events:" )

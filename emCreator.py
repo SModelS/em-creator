@@ -220,12 +220,12 @@ class emCreator:
         timestamp = d["meta"]["timestamp"]
         nevents = d["meta"]["nevents"]
         effs = {}
-        print ( f"@@0 d {d}" )
+        #print ( f"@@0 d {d}" )
         for k,v in d.items():
             if k == "meta":
                 continue
             effs[k]=v["eff"]
-        print ( f"@@0 effs {effs}" )
+        #print ( f"@@0 effs {effs}" )
         return { self.analyses: effs }, timestamp
 
     def extractMA5 ( self, masses ):
