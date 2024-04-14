@@ -1,5 +1,8 @@
 all: .PHONY
 
+embaked: .PHONY
+	./emCreator.py
+
 du-h: .PHONY
 	du -h --max-depth=1 | tee du-h.temp
 	mv du-h.temp du-h
