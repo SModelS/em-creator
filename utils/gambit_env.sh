@@ -1,5 +1,8 @@
 #!/bin/sh
 
+[ "$BOOST_ROOT" == "/software/f2021/software/boost/1.74.0-gcc-10.2.0" ] && {
+	return;
+}
 unset PYTHONPATH
 
 ml load build-env/f2021
