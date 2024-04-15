@@ -24,7 +24,10 @@ class GambitWrapper ( LoggerBase ):
         if pathToGambit.endswith("/"):
             pathToGambit = pathToGambit[:-1]
         self.pathToGambit = pathToGambit
-        self.retrieveAnalysesDictionary()
+        d = gambitHelpers.retrieveAnalysesDictionary( pathToGambit )
+        self.idToGambit = d["idToGambit"]
+        self.gambitToId = d["gambitToId"]
+        self.sqrtsOfGambit = d["sqrtsOfGambit"]
         self.topo = topo
         self.keephepmc = keephepmc
         self.sqrts = sqrts
@@ -201,14 +204,13 @@ class GambitWrapper ( LoggerBase ):
             f.write ( line )
         f.close()
 
-
     def listAnalyses ( self ):
-        self.retrieveAnalysesDictionary()
-        keys = list ( self.idToGambit.keys() )
+        d = gambitHelpers.retrieveAnalysesDictionary( self.pathToGambit )
+        keys = list ( d["idToGambit"].keys() )
         keys.sort()
 
         for ctr,k in enumerate ( keys ):
-            v = self.idToGambit[k]
+            v = d["idToGambit"][k]
             print ( f"#{ctr:2d} {k:20s} {v:40s}" )
 
     def compileAnalysesDictionary ( self ):
@@ -217,23 +219,6 @@ class GambitWrapper ( LoggerBase ):
         self.gambitToId = d["gambitToId"]
         self.idToGambit = d["idToGambit"]
         self.sqrtsOfGambit = d["sqrtsOfGambit"]
-
-    def retrieveAnalysesDictionary ( self ):
-        """ retrieve the analysis dictionary. from cache file if exists,
-        else build the cache file. """
-        cachefile = "gambitdict.cache"
-        if os.path.exists ( cachefile ):
-            with open ( cachefile, "rt" ) as f:
-                txt = f.read()
-                d = eval(txt)
-                self.gambitToId = d["gambitToId"]
-                self.idToGambit = d["idToGambit"]
-                self.sqrtsOfGambit = d["sqrtsOfGambit"]
-                return
-        self.compileAnalysesDictionary()
-        with open ( cachefile, "wt" ) as f:
-            f.write ( f"{{ 'gambitToId': {self.gambitToId}, 'idToGambit': {self.idToGambit}, 'sqrtsOfGambit': {self.sqrtsOfGambit} }}\n" )
-            f.close()
 
 if __name__ == "__main__":
     wrapper = GambitWrapper()
