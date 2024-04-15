@@ -495,8 +495,8 @@ def createEmbakedFile( effs, topo, recast : str, tstamps, creator, copy,
                 print ( f"[emCreator] {cmd} {o}" )
     return ntot
 
-def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts, recaster,
-                 create_stats, cleanup, printLine ):
+def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts, 
+                 recaster, create_stats, cleanup, printLine ):
     """
     :param analyses: analysis, e.g. cms_sus_19_006, singular. lowercase.
     :param keep: keep the cruft files
@@ -505,10 +505,11 @@ def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts, reca
     :param cleanup: if true, remove a few more temporary files
     """
     if masses in [ "all" ]:
-        masses = bakeryHelpers.getListOfMasses(topo, True, sqrts, recaster, analyses)
+        masses = bakeryHelpers.getListOfMasses( topo, True, sqrts, recaster, 
+                                                analyses)
     else:
         masses = bakeryHelpers.parseMasses ( masses )
-    # print ( f"[emCreator.runForTopo] {analyses}:{topo} masses={masses}" )
+    # print ( f"[emCreator.runForTopo] {analyses}:{topo}\n          masses={str(masses):.60s}" )
 
     if masses == []:
         pass 
@@ -814,6 +815,7 @@ def run ( args ):
             topos = args.topo
     if type(topos) in [ str ]:
         topos = [ topos ]
+    analyses = set ( analyses )
     for topo in topos:
         printLine = True
         for ana in analyses:
