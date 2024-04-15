@@ -150,7 +150,7 @@ class emCreator:
     def getNEvents ( self, masses : List ) -> int:
         fname = bakeryHelpers.safFile ( self.resultsdir, self.topo, masses, self.sqrts )
         if not os.path.exists ( fname ):
-            print ( "[emCreator.py] %s does not exist, cannot report correct number of events" % fname )
+            print ( f"[emCreator] {fname} does not exist, cannot report correct number of events" )
             return -2
         with open ( fname, "rt" ) as f:
             lines=f.readlines()
@@ -160,7 +160,7 @@ class emCreator:
             if "nevents" in line:
                 tokens = lines[ctr+1].split()
                 if len(tokens)<3:
-                    print ( "[emCreator.py] I get confused with %s, cannot report correct number of events" % fname )
+                    print ( f"[emCreator] I get confused with {fname}, cannot report correct number of events" )
                     return -3
                 return int(tokens[2])
 
@@ -220,12 +220,12 @@ class emCreator:
         timestamp = d["meta"]["timestamp"]
         nevents = d["meta"]["nevents"]
         effs = {}
-        #print ( f"@@0 d {d}" )
         for k,v in d.items():
             if k == "meta":
+                if "nevents" in v:
+                    effs["__nevents__"]=v["nevents"]
                 continue
             effs[k]=v["eff"]
-        #print ( f"@@0 effs {effs}" )
         return { self.analyses: effs }, timestamp
 
     def extractMA5 ( self, masses ):
@@ -552,14 +552,11 @@ def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts, reca
     for name,number in nrecasts.items():
         if number>0:
             line += f" and {number} running {name} jobs"
-    if printLine and nall>0:
-        print ( line )
     nemb = 0
     if True: # nall > 0 and printLine:
         for recast in recaster:
             nemb = createEmbakedFile( effs, topo, recast, tstamps, creator, 
                     copy, create_stats )
-        # print ( "add", nemb )
     if not keep and cleanup:
         for i in creator.toDelete:
             print ( f"[emCreator] deleting {i}" )
@@ -785,10 +782,10 @@ def run ( args ):
         try:
             D=eval(txt)
         except Exception as e:
-            print ( f"[emCreator] error with {fname}: {e} {txt:20}" )
+            print ( f"[emCreator] error with {fname}: {e} {txt:.20s}" )
         f.close()
         nplus = len(D.keys())
-        if True: # args.verbose:
+        if False: # args.verbose:
             print ( f"[emCreator] in {fname}: {nplus} points" )
         ntotembaked+=nplus
         # ntot+=nplus

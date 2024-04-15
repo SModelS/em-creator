@@ -81,6 +81,11 @@ def install( ver, plugins = True, pyver = 3 ):
     if plugins:
         install_plugins( pyver )
 
+def protectPythia8Install():
+    """ protect the pythia8 files, sometimes they get magically deleted. """
+    cmd = f"chmod -R u-w mg5/HEPTools/pythia8/"
+    o = subprocess.getoutput ( cmd )
+
 def modifyBoostInstaller():
     ## seems to get overwritten again
     boostscript = "HEPTools/HEPToolsInstallers/installBOOST.sh"
@@ -95,9 +100,9 @@ def modifyBoostInstaller():
     f.close()
     cmd = "cp /tmp/boostinstaller %s" % boostscript
     a=subprocess.getoutput ( cmd )
-    cmd = "chmod 500 %s" % boostscript
+    cmd = f"chmod 500 {boostscript}"
     a2=subprocess.getoutput ( cmd )
-    print ( "cmd", cmd, a, a2, os.getcwd() )
+    print ( f"[mg5make.py] cmd {cmd} {a} {a2} {os.getcwd()}" )
 
 def trim():
     """ trim the install down to what is needed """

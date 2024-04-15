@@ -141,7 +141,7 @@ def parseMasses ( massstring, mingap1=None, maxgap1=None,
         masses = ""
     if type(masses) not in [ list, tuple ] or len(masses)<2:
         mdefault = "(500,510,10),(100,110,10)"
-        print ( "Error: masses need to be given as e.g. %s (you will need to put it under parentheses)" % mdefault )
+        print ( "[bakeryHelpers.py] Error: masses need to be given as e.g. %s (you will need to put it under parentheses)" % mdefault )
         sys.exit()
     lists=[]
     for ctr,mtuple in enumerate(masses): ## tuple by tuple
@@ -161,7 +161,7 @@ def parseMasses ( massstring, mingap1=None, maxgap1=None,
                 lists.append ( tuple(tmp) )
                 continue
             else:
-                print ( "error: i know only 'half' or 'same' for a string, and only in middle position. the only exception is 'M0+nb' in the third position when we have 4 mass tuples with nb in range(5,50,1) and M0 is the mass of the LSP, this can't be used with 'half' though" )
+                print ( "[bakeryHelpers.py] error: i know only 'half' or 'same' for a string, and only in middle position. the only exception is 'M0+nb' in the third position when we have 4 mass tuples with nb in range(5,50,1) and M0 is the mass of the LSP, this can't be used with 'half' though" )
                 sys.exit()
         if type(mtuple) in [ int, float ]:
             tmp.append ( mtuple )
@@ -615,7 +615,7 @@ def clean ():
             continue
         subprocess.getoutput ( "rm -rf %s" % f )
         cleaned.append ( f )
-    print ( "Cleaned %d temporary files" % len(cleaned) )
+    print ( f"[bakeryHelpers] Cleaned {len(cleaned)} temporary files" )
     checkEventFiles()
 
 def checkEventFiles():
@@ -651,7 +651,7 @@ def cleanAll():
         #    continue
         subprocess.getoutput ( "rm -rf %s" % f )
         cleaned.append ( f )
-    print ( "Cleaned %d temporary files" % len(cleaned) )
+    print ( f"[bakeryHelpers] Cleaned {len(cleaned)} temporary files" )
 
 def rmLocksOlderThan ( hours=8 ):
     """ remove all locks older than <hours> """
@@ -705,7 +705,7 @@ def execute( cmd:List[str], logfile:str=None, maxLength=100, cwd:str=None,
         directory = os.getcwd()
     else:
         directory = cwd
-    print(f'[helpers:{directory}] {scmd}')
+    print(f'[bakeryHelpers:{directory}] {scmd}')
     ctr=0
     while ctr < 5:
         try:
@@ -722,14 +722,14 @@ def execute( cmd:List[str], logfile:str=None, maxLength=100, cwd:str=None,
                 with open(logfile, "a") as log:
                     log.write(f'exec: {directory} $$ {scmd}')
             if not (proc.returncode == 0):
-                print(f"[helpers] Executed process: \n{scmd}\n\nin"
+                print(f"[bakeryHelpers] Executed process: \n{scmd}\n\nin"
                             f" directory:\n{directory}\n\nproduced an error\n\n"
                             f"value {proc.returncode}.")
                 if exit_on_fail is True:
                     sys.exit()
             return proc.returncode
         except BlockingIOError as e:
-            print( "[helpers] ran into blocking io error. wait a bit then try again." )
+            print( "[bakeryHelpers] ran into blocking io error. wait a bit then try again." )
             time.sleep ( random.uniform(1,10)+ctr*30 )
             ctr += 1
         sys.exit()
