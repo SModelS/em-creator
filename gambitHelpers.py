@@ -7,8 +7,8 @@
 .. moduleauthor:: Wolfgang Waltenberger <wolfgang.waltenberger@gmail.com>
 """
 
-import os, re, sys
-from typing import Dict, Union
+import os, re, sys, copy
+from typing import Dict, Union, List
 
 def scrapeCdsPage ( url : str ) -> str:
     """ from a cds page, get the analysis id """
@@ -40,6 +40,26 @@ def scrapeCdsPage ( url : str ) -> str:
             return token # return first
     return "?"
 
+def buildCovMatrix ( covm : Dict ) -> List:
+    """ from the list of rows, assemble the covariance matrix.
+    there might be submatrices """
+    if len(covm)==1:
+        return covm[1]
+    ndim = 0
+    for matrixNr, matrix in covm.items():
+        ndim += len(matrix)
+    row = [0.] * ndim
+    finalmatrix = []
+    for i in range(ndim):
+        finalmatrix.append ( copy.deepcopy ( row ) )
+    offset = 0
+    for matrixNr, matrix in covm.items():
+        for x,row in enumerate(matrix):
+            for y,value in enumerate(row):
+                finalmatrix[x+offset][y+offset]=value
+        offset += len(matrix)
+    return finalmatrix
+
 def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
     """ given a colliderbit cpp file, extract the analysis id.
     return dictionary with gambit name and analysis id
@@ -61,21 +81,23 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
     lines = h.readlines()
     h.close()
     inCovMatrix = False
-    covMatrix = []
+    covMatrix = {}
+    matrixNr = 0
     for line in lines:
         if "BKGCOV" in line and not "set_covariance" in line:
             #print ( f"@@0 getting cov matrix for {filename}" )
             inCovMatrix = True
+            matrixNr += 1
             continue
         if "set_covariance" in line:
             #print ( f"@@9 adding cov matrix {len(covMatrix)} to dict for {filename}" )
             if len(covMatrix)>0:
-                ret["covMatrix"]=covMatrix
+                ret["covMatrix"]=buildCovMatrix ( covMatrix )
             inCovMatrix = False
         if inCovMatrix == True and "};" in line:
             #print ( f"@@9 adding cov matrix {len(covMatrix)} to dict for {filename}" )
             if len(covMatrix)>0:
-                ret["covMatrix"]=covMatrix
+                ret["covMatrix"]=buildCovMatrix ( covMatrix )
             inCovMatrix = False
         if inCovMatrix:
             covline = line.replace("{","[").replace("},","]")
@@ -89,7 +111,9 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             if "[" in covline:
                 try:
                     vline = eval(covline)
-                    covMatrix.append ( vline )
+                    if not matrixNr in covMatrix:
+                        covMatrix[matrixNr]=[]
+                    covMatrix[matrixNr].append ( vline )
                 except Exception as e:
                     print ( f"[gambitHelpers] exception with {filename} {covline}: {e}" )
                     sys.exit()
@@ -328,10 +352,15 @@ def retrieveAnalysesDictionary ( pathToGambit : str ) ->  Dict:
 def getCovMatrixFor ( anaid : str, pathToGambit ):
     d = retrieveAnalysesDictionary ( pathToGambit )
     gambitName = d["idToGambit"][anaid]
-    print (d["covMatrix"][gambitName] )
+    ret = d["covMatrix"][gambitName]
+    with open ( "covmatrix", "wt" ) as f:
+        f.write ( f"{ret}\n" )
+        f.close()
+    return ret
 
 if __name__ == "__main__":
     print ( getCovMatrixFor ( "CMS-SUS-20-001", "../gambit_2.4/" ) )
+
     # ret = compileDictOfGambitAnalyses( "../gambit_2.4/" )
     # ret = getAnaIdFromArxivNr ( "1308.2631" )
     # ret = scrapeCdsPage ( "https://cds.cern.ch/record/2267406" )
