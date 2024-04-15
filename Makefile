@@ -31,4 +31,7 @@ pull_from_clip:
 backup_embaked:
 	./utils/backupEmbaked.py
 
+clean:
+	rm -rf mg5results/ temp/ gambit_results ../smodels-utils/clip/temp/ $(OUTPUTS) T*jet.*
+
 .PHONY:

@@ -542,6 +542,20 @@ class MG5Wrapper:
             except FileExistsError as e:
                 # can happen if many processses start at once
                 pass
+
+    def fixPythia8 ( self ):
+        """ fix pythia8, first remove it """
+        path = os.path.join ( self.mg5install, "HEPTools", "pythia8" )
+        cmd = f"rm -rf {path}"
+        o = subprocess.getoutput ( cmd )
+        backup = os.path.join ( self.basedir, "backup", "pythia8" )
+        if not os.path.exists ( backup ):
+            line = "pythia8 install broken and no backup available"
+            self.error ( line )
+            raise Exception ( line )
+        cmd = f"cp -r {backup} {path}"
+        o = subprocess.getoutput ( cmd )
+
     def checkInstallation ( self ):
         """ check the mg5 installation, including plugins
         :raises: Exception, if anything is wrong
@@ -551,7 +565,11 @@ class MG5Wrapper:
         pythiaconfig = os.path.join ( path, "pythia8-config" )
         # print ( f"[mg5Wrapper] checking in {path}" )
         if not os.path.exists ( pythiaconfig ):
-            raise Exception ( f"cannot find pythia8-config: {pythiaconfig}" )
+            self.fixPythia8()
+        path = os.path.join ( self.mg5install, "HEPTools", "pythia8", "share", "Pythia8", "xmldoc" )
+        pythiaxml = os.path.join ( path, "Welcome.xml" )
+        if not os.path.exists ( pythiaxml ):
+            self.fixPythia8()
         cmd = f"{pythiaconfig} --with-hepmc2"
         o = subprocess.getoutput ( cmd )
         if o == "false":
