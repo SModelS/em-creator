@@ -55,7 +55,7 @@ class emCreator:
         filepath = f"cutlang_results/{ana}/ANA_{self.topo}_1jet/temp/histoOut*root"
         files = glob.glob ( filepath )
         if len(files)==0:
-            self.error ( f"could not find any files at {filepath}" )
+            self.debug ( f"could not find any files at {filepath}" )
             ret = {}
             for k in SRs:
                 if k.startswith("__"):
@@ -197,14 +197,15 @@ class emCreator:
             print( f"found several files for {toglob}" )
         return effs,timestamp
 
-    def extract ( self, masses ):
+    def extract ( self, masses, recast ):
         """ extract the efficiencies from recaster """
-        if "adl" in self.recaster:
+        if recast == "adl":
             return self.extractCutlang ( masses )
-        if "MA5" in self.recaster:
+        if recast == "MA5":
             return self.extractMA5 ( masses )
-        if "colliderbit" in self.recaster:
+        if recast == "colliderbit":
             return self.extractColliderbit ( masses )
+        return {}, None
 
     def extractColliderbit ( self, masses ) :
         """ extract the efficiencies from colliderbit """
@@ -220,8 +221,14 @@ class emCreator:
         timestamp = d["meta"]["timestamp"]
         nevents = d["meta"]["nevents"]
         effs = {}
+        removeFilesWithLowerThan = 30001
+        removeFilesWithLowerThan = 1
         for k,v in d.items():
             if k == "meta":
+                if v["nevents"]<removeFilesWithLowerThan:
+                    cmd = f"rm {effFile}"
+                    subprocess.getoutput ( cmd )
+                    continue
                 if "nevents" in v:
                     effs["__nevents__"]=v["nevents"]
                 continue
@@ -380,10 +387,12 @@ def massesInEmbakedFile ( masses, analysis, topo, recaster : list ):
     return False
 
 def createEmbakedFile( effs, topo, recast : str, tstamps, creator, copy,
-                       create_stats ):
+                       create_stats ) -> int:
     """ not sure, it creates embaked file but also statsEM.py file,
     also copies to database etc """
     ntot = 0
+    if len(effs)==0:
+        return ntot
     bakeryHelpers.mkdir ( "embaked/" )
     for ana,values in effs.items():
         if len(values.keys()) == 0:
@@ -509,7 +518,7 @@ def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts,
                                                 analyses)
     else:
         masses = bakeryHelpers.parseMasses ( masses )
-    # print ( f"[emCreator.runForTopo] {analyses}:{topo}\n          masses={str(masses):.60s}" )
+    # print ( f"[emCreator.runForTopo] {analyses}:{topo}\n          masses={str(masses):.60s} {recaster}" )
 
     if masses == []:
         pass 
@@ -521,15 +530,20 @@ def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts,
     effs,tstamps={},{}
     if verbose:
         print ( f"[emCreator] topo {topo}: {len(masses)} mass points considered" )
-    for m in masses:
-        eff,t = creator.extract( m )
-        for k,v in eff.items():
-            if not k in effs:
-                effs[k]={}
-                tstamps[k]={}
-            effs[k][m]=v
-            tstamps[k][m]=t
-    seffs = ", ".join(list(effs.keys()))
+    for recast in recaster:
+        effs[recast]={}
+        tstamps[recast]={}
+        for m in masses:
+            eff,t = creator.extract( m, recast )
+            if len(eff)==0:
+                continue
+            for k,v in eff.items():
+                if not k in effs[recast]:
+                    effs[recast][k]={}
+                    tstamps[recast][k]={}
+                effs[recast][k][m]=v
+                tstamps[recast][k][m]=t
+    seffs = ", ".join(list(effs[recast].keys()))
     if seffs == "":
         seffs = "no analysis"
     seffs_smodels = seffs.upper().replace("_","-")
@@ -556,7 +570,7 @@ def runForTopo ( topo, njets, masses, analyses, verbose, copy, keep, sqrts,
     nemb = 0
     if True: # nall > 0 and printLine:
         for recast in recaster:
-            nemb = createEmbakedFile( effs, topo, recast, tstamps, creator, 
+            nemb = createEmbakedFile( effs[recast], topo, recast, tstamps[recast], creator, 
                     copy, create_stats )
     if not keep and cleanup:
         for i in creator.toDelete:
@@ -792,18 +806,19 @@ def run ( args ):
         # ntot+=nplus
 
     analyses = getMG5ListOfAnalyses()
+    tmp = []
     for recast in recaster:
         if True: # analyses in [ "None", None, "none", "" ]:
             ## retrieve list of analyses
             if recast == "adl":
-                tmp = getCutlangListOfAnalyses()
+                tmp += getCutlangListOfAnalyses()
             if recast == "MA5":
-                tmp = getMA5ListOfAnalyses()
+                tmp += getMA5ListOfAnalyses()
                 tmp += getMA5ListOfRunningAnalyses( args.topo, args.njets )
             if recast == "cm2":
-                tmp = getCm2ListOfAnalyses()
+                tmp += getCm2ListOfAnalyses()
             if recast == "colliderbit":
-                tmp = getColliderbitListOfAnalyses()
+                tmp += getColliderbitListOfAnalyses()
             for t in tmp:
                 analyses.append ( t.upper().replace("_","-") )
 
