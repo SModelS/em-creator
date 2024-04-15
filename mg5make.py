@@ -24,6 +24,11 @@ def install_plugins( pyver=3 ):
         subprocess.getoutput ( cmd )
     if os.path.exists ( "installing.txt" ):
         os.unlink ( "installing.txt" )
+    protectPythia8Install()
+
+#def createPythia8Backup():
+#    if not os.path.exists ( "backup" ):
+#        os.mkdir ( "backup" )
 
 def install( ver, plugins = True, pyver = 3 ):
     """
@@ -84,6 +89,11 @@ def install( ver, plugins = True, pyver = 3 ):
 def protectPythia8Install():
     """ protect the pythia8 files, sometimes they get magically deleted. """
     cmd = f"chmod -R u-w mg5/HEPTools/pythia8/"
+    o = subprocess.getoutput ( cmd )
+
+def unprotectPythia8Install():
+    """ unprotect the pythia8 files """
+    cmd = f"chmod -R u+w mg5/HEPTools/pythia8/"
     o = subprocess.getoutput ( cmd )
 
 def modifyBoostInstaller():
