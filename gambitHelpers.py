@@ -83,14 +83,33 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
     inCovMatrix = False
     covMatrix = {}
     matrixNr = 0
-    srNames = []
+    srNames, srDescriptions = [], []
     for line in lines:
-        if "add_result" in line:
+        if True and "add_result" in line and "SignalRegionData" in line:
+            p1 = line.find("//")
+            if p1 > -1:
+                line = line[:p1]
             p1 = line.find('"')
             p2 = line.rfind('"')
             srname = line[p1+1:p2]
-            srNames.append ( srname )
+            srname = srname.strip()
+            if len(srname)>0 and not srname in srNames:
+                srNames.append ( srname )
             continue
+        if False and "EventCounter" in line and not "=" in line:
+            cleaned = line.replace("{","").replace("EventCounter","")
+            cleaned = cleaned.replace( "}", "" ).replace("(","").replace(")","")
+            cleaned = cleaned.replace( '"', '' ).replace("'","")
+            p1 = cleaned.find ( "//" )
+            if p1 > -1:
+                cleaned = cleaned[:p1]
+            cleaned = cleaned.strip()
+            if cleaned.endswith(","):
+                cleaned = cleaned[:-1]
+            tokens = cleaned.split(",")
+            if len(tokens)>=2:
+                srNames.append ( tokens[0] )
+                srDescriptions.append ( tokens[1] )
         if "BKGCOV" in line and not "set_covariance" in line:
             #print ( f"@@0 getting cov matrix for {filename}" )
             inCovMatrix = True
@@ -238,6 +257,7 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             anaid = token.strip()
             ret["anaid"]=anaid
     ret["srNames"] = srNames
+    ret["srDescriptions"] = srDescriptions
     if len(ret)==1:
         print ( f"[gambitHelpers] we did not find an entry for {ananame}" )
     return ret
@@ -307,7 +327,7 @@ def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
     idToGambit = {}
     sqrtsOfGambit = {}
     covMatrix = {}
-    srNames = {}
+    srNames, srDescriptions = {}, {}
     for f in files:
         names = getAnalysisIdFor ( f )
         if names == None:
@@ -320,9 +340,10 @@ def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
         if "covMatrix" in names:
             covMatrix [ names["gambit" ] ] = names["covMatrix"]
         srNames[ names["gambit"] ] = names["srNames"]
+        srDescriptions[ names["gambit"] ] = names["srDescriptions"]
     return { "gambitToId": gambitToId, "idToGambit": idToGambit,
              "sqrtsOfGambit": sqrtsOfGambit, "covMatrix": covMatrix,
-             "srNames": srNames }
+             "srNames": srNames, "srDescriptions": srDescriptions }
 
 def retrieveAnalysesDictionary ( pathToGambit : str ) ->  Dict:
     """ retrieve the analysis dictionary. from cache file if exists,
@@ -338,7 +359,7 @@ def retrieveAnalysesDictionary ( pathToGambit : str ) ->  Dict:
             return d
     d  = compileDictOfGambitAnalyses( pathToGambit )
     with open ( cachefile, "wt" ) as f:
-        f.write ( f"{{ 'gambitToId': {d['gambitToId']}, 'idToGambit': {d['idToGambit']}, 'sqrtsOfGambit': {d['sqrtsOfGambit']}, 'covMatrix': {d['covMatrix']}, 'srNames': {d['srNames']} }}\n" )
+        f.write ( f"{{ 'gambitToId': {d['gambitToId']}, 'idToGambit': {d['idToGambit']}, 'sqrtsOfGambit': {d['sqrtsOfGambit']}, 'covMatrix': {d['covMatrix']}, 'srNames': {d['srNames']}, 'srDescriptions': {d['srDescriptions']} }}\n" )
         f.close()
     return d
     
