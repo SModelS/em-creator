@@ -5,7 +5,7 @@ analyses:
 @@ANALYSES@@
 
 settings:
-  debug: true
+  debug: false
   seed: -1
   event_file: @@HEPMCFILE@@
   cross_section_pb: 0.001 # 1 fb
