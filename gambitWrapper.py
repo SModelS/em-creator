@@ -28,6 +28,7 @@ class GambitWrapper ( LoggerBase ):
         self.idToGambit = d["idToGambit"]
         self.gambitToId = d["gambitToId"]
         self.sqrtsOfGambit = d["sqrtsOfGambit"]
+        self.srNames = d["srNames"]
         self.topo = topo
         self.keephepmc = keephepmc
         self.sqrts = sqrts
@@ -132,6 +133,9 @@ class GambitWrapper ( LoggerBase ):
                 srindex = int ( tmp )
                 ## srname = f"SR{srindex}" ## FIXME 0-indexed or 1-indexed?
                 srname = f"SR{srindex+1}"
+                # print(f"@@0 here we need to determine the SR name. idx {srindex}")
+                srname = self.srNames[self.gambitAna][srindex]
+                # print ( f"@@3 srname SR{srindex+1}={srname}" )
                 stats[srname]={}
             if "Observed events:" in line:
                 p1 = line.find ( "Observed events:" )
