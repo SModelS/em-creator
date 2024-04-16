@@ -83,7 +83,14 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
     inCovMatrix = False
     covMatrix = {}
     matrixNr = 0
+    srNames = []
     for line in lines:
+        if "add_result" in line:
+            p1 = line.find('"')
+            p2 = line.rfind('"')
+            srname = line[p1+1:p2]
+            srNames.append ( srname )
+            continue
         if "BKGCOV" in line and not "set_covariance" in line:
             #print ( f"@@0 getting cov matrix for {filename}" )
             inCovMatrix = True
@@ -138,8 +145,6 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             p2 = anaid.find("/")
             anaid = "CMS-"+anaid[:p2]
             ret["anaid"]=anaid
-            if "sqrts" in ret and "covMatrix" in ret:
-                return ret
     for line in lines:
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
             p1 = line.find ( "PHYSICS/CONFNOTES" )
@@ -147,32 +152,24 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             p2 = anaid.find("/")
             anaid = anaid[:p2]
             ret["anaid"]=anaid
-            if "sqrts" in ret and "covMatrix" in ret:
-                return ret
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
             p1 = line.find ( "PHYSICS/CONFNOTES" )
             anaid = line[p1+18:]
             p2 = anaid.find("/")
             anaid = anaid[:p2]
             ret["anaid"]=anaid
-            if "sqrts" in ret and "covMatrix" in ret:
-                return ret
         if "cms-results.web.cern.ch/cms-results/public-results/superseded" in line:
             p1 = line.find ( "results/superseded" )
             anaid = line[p1+19:]
             p2 = anaid.find("/")
             anaid = "CMS-"+anaid[:p2]
             ret["anaid"]=anaid
-            if "sqrts" in ret and "covMatrix" in ret:
-                return ret
         if "cms-results.web.cern.ch/cms-results/public-results/preliminary-results" in line:
             p1 = line.find ( "results/preliminary-results" )
             anaid = line[p1+28:]
             p2 = anaid.find("/")
             anaid = "CMS-PAS-"+anaid[:p2]
             ret["anaid"]=anaid
-            if "sqrts" in ret and "covMatrix" in ret:
-                return ret
         if "arxiv:" in line or "arXiv:" in line:
             line = line.lower()
             p1 = line.find ( "arxiv:" )
@@ -185,9 +182,8 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
                 arxivnr = arxivnr[:-1]
             if len(arxivnr)>0:
                 anaid = getAnaIdFromArxivNr ( arxivnr )
-                ret["anaid"]=anaid
-                if "sqrts" in ret and "covMatrix" in ret:
-                    return ret
+                if anaid != None:
+                    ret["anaid"]=anaid
         if "arxiv.org" in line:
             line = line.lower()
             line = line.replace( "abs/","" ).replace("pdf/","")
@@ -202,24 +198,20 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             if len(arxivnr)>0:
                 anaid = getAnaIdFromArxivNr ( arxivnr )
                 ret["anaid"]=anaid
-                if "sqrts" in ret and "covMatrix" in ret:
-                    return ret
         findArxivNrs = re.findall ( r" \d\d\d\d.\d\d\d\d\d", line )
         if len(findArxivNrs)>0:
             arxivnr = findArxivNrs[0][1:]
             if len(arxivnr)>0:
                 anaid = getAnaIdFromArxivNr ( arxivnr )
-                ret["anaid"]=anaid
-                if "sqrts" in ret and "covMatrix" in ret:
-                    return ret
+                if anaid != None:
+                    ret["anaid"]=anaid
         findArxivNrs = re.findall ( r" \d\d\d\d.\d\d\d\d", line )
         if len(findArxivNrs)>0:
             arxivnr = findArxivNrs[0][1:]
             if len(arxivnr)>0:
                 anaid = getAnaIdFromArxivNr ( arxivnr )
-                ret["anaid"]=anaid
-                if "sqrts" in ret and "covMatrix" in ret:
-                    return ret
+                if anaid != None:
+                    ret["anaid"]=anaid
         if "cds.cern.ch/record" in line:
             p1 = line.find("https://")
             if p1 == -1:
@@ -231,16 +223,12 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
                 url = url[:p1-1]
             anaid = scrapeCdsPage ( url )
             ret["anaid"]=anaid
-            if "sqrts" in ret and "covMatrix" in ret:
-                return ret
         if "ATLAS-" in line:
             p1 = line.find( "ATLAS-" )
             token = line[p1:]
             token = token.strip()
             anaid = token
             ret["anaid"]=anaid
-            if "sqrts" in ret and "covMatrix" in ret:
-                return ret
         if "twiki.cern.ch/twiki/bin/view/CMSPublic/PhysicsResults" in line:
             p1 = line.find("PhysicsResults")
             token = "CMS-"+line[p1+14:]
@@ -249,25 +237,26 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             token = token.replace("1400","14-00")
             anaid = token.strip()
             ret["anaid"]=anaid
-            if "sqrts" in ret and "covMatrix" in ret:
-                return ret
+    ret["srNames"] = srNames
     if len(ret)==1:
         print ( f"[gambitHelpers] we did not find an entry for {ananame}" )
     return ret
 
-def getAnaIdFromArxivNr ( arxivnr : str ) -> str:
+def getAnaIdFromArxivNr ( arxivnr : str ) -> Union[None,str]:
     """ given arxiv nr, get anaid, scrape it off the web.
     :param arxivnr: e.g. 1308.2631
-    :returns: e.g. ATLAS-SUSY-2013-05
+    :returns: e.g. ATLAS-SUSY-2013-05, or None if not successful
     """
     from urllib.request import urlopen
+    if arxivnr in [ "9999999999", "1000000000", "999999999", "100000000", "1908.0000" ]:
+        return None
     url = f"https://arxiv.org/abs/{arxivnr}"
     try:
         f = urlopen ( url )
         lines = f.readlines()
         f.close()
     except Exception as e:
-        print ( f"[gambitHelpers] HTTPError {e}" )
+        print ( f"[gambitHelpers] HTTPError {url}: {e}" )
         return None
     anaid = None
     for bline in lines:
@@ -295,7 +284,8 @@ def getAnaIdFromArxivNr ( arxivnr : str ) -> str:
             anaid = token[:p2]
             anaid = anaid.strip()
     if anaid == None:
-        print ( f"[gambitHelpers] found no entry for {arxivnr}" )
+        pass
+        # print ( f"[gambitHelpers] found no entry for arXiv:{arxivnr}" )
     # print ( f"@@A getAnaIdFromArxivNr {arxivnr}: {anaid}" )
     return anaid
 
@@ -317,6 +307,7 @@ def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
     idToGambit = {}
     sqrtsOfGambit = {}
     covMatrix = {}
+    srNames = {}
     for f in files:
         names = getAnalysisIdFor ( f )
         if names == None:
@@ -328,8 +319,10 @@ def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
         sqrtsOfGambit[ names["gambit"] ] = names["sqrts"]
         if "covMatrix" in names:
             covMatrix [ names["gambit" ] ] = names["covMatrix"]
+        srNames[ names["gambit"] ] = names["srNames"]
     return { "gambitToId": gambitToId, "idToGambit": idToGambit,
-             "sqrtsOfGambit": sqrtsOfGambit, "covMatrix": covMatrix }
+             "sqrtsOfGambit": sqrtsOfGambit, "covMatrix": covMatrix,
+             "srNames": srNames }
 
 def retrieveAnalysesDictionary ( pathToGambit : str ) ->  Dict:
     """ retrieve the analysis dictionary. from cache file if exists,
@@ -345,7 +338,7 @@ def retrieveAnalysesDictionary ( pathToGambit : str ) ->  Dict:
             return d
     d  = compileDictOfGambitAnalyses( pathToGambit )
     with open ( cachefile, "wt" ) as f:
-        f.write ( f"{{ 'gambitToId': {d['gambitToId']}, 'idToGambit': {d['idToGambit']}, 'sqrtsOfGambit': {d['sqrtsOfGambit']}, 'covMatrix': {d['covMatrix']} }}\n" )
+        f.write ( f"{{ 'gambitToId': {d['gambitToId']}, 'idToGambit': {d['idToGambit']}, 'sqrtsOfGambit': {d['sqrtsOfGambit']}, 'covMatrix': {d['covMatrix']}, 'srNames': {d['srNames']} }}\n" )
         f.close()
     return d
     
@@ -359,9 +352,10 @@ def getCovMatrixFor ( anaid : str, pathToGambit ):
     return ret
 
 if __name__ == "__main__":
-    print ( getCovMatrixFor ( "CMS-SUS-20-001", "../gambit_2.4/" ) )
+    # print ( getCovMatrixFor ( "CMS-SUS-20-001", "../gambit_2.4/" ) )
 
     # ret = compileDictOfGambitAnalyses( "../gambit_2.4/" )
+    retrieveAnalysesDictionary ( "../gambit_2.4/" )
     # ret = getAnaIdFromArxivNr ( "1308.2631" )
     # ret = scrapeCdsPage ( "https://cds.cern.ch/record/2267406" )
     # print ( ret )
