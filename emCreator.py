@@ -14,18 +14,23 @@ import bakeryHelpers
 from colorama import Fore
 from typing import List, Tuple
 import gambitHelpers
+from loggerbase import LoggerBase
 
-hasWarned = { "cutlangstats": False }
+hasWarned = { "cutlangstats": False, "removeFilesWithLowerThan": 0 }
 
-class emCreator:
+class emCreator ( LoggerBase ):
     def __init__ ( self, analyses : str, topo : str, njets : int, 
                    keep : bool, sqrts : float, recaster : dict ):
         """ the efficiency map creator.
         :param keep: if true, keep all files
         :param recaster: which recaster do we consider
         """
+        super(emCreator, self).__init__ ( )
+        self.removeFilesWithLowerThan = 29001 # remove files with fewer than 
+        # self.removeFilesWithLowerThan = 1 # remove files with fewer than 
+        # this number of events
         self.basedir = bakeryHelpers.baseDir()
-        self.resultsdir = ( self.basedir + "/ma5results/" ).replace("//","/")
+        self.ma5results = ( self.basedir + "/ma5results/" ).replace("//","/")
         self.analyses = analyses
         self.topo = topo
         self.njets = njets
@@ -33,18 +38,6 @@ class emCreator:
         self.sqrts = sqrts
         self.recaster = recaster
         self.toDelete = [] # collect all that is ok to delete
-
-    def info ( self, *msg ):
-        print ( f"{Fore.YELLOW}[emCreator] {' '.join(msg)}{Fore.RESET}" )
-
-    def debug( self, *msg ):
-        pass
-
-    def msg ( self, *msg):
-        print ( "[emCreator] %s" % " ".join ( msg ) )
-
-    def error ( self, *msg ):
-        print ( f"{Fore.RED}[emCreator] {' '.join(msg)}{Fore.RESET}" )
 
     def getCutlangStatistics ( self, ana, SRs ) -> List:
         """ obtain nobs, nb, etc from the ADL file
@@ -148,9 +141,9 @@ class emCreator:
         return ret
 
     def getNEvents ( self, masses : List ) -> int:
-        fname = bakeryHelpers.safFile ( self.resultsdir, self.topo, masses, self.sqrts )
+        fname = bakeryHelpers.safFile ( self.ma5results, self.topo, masses, self.sqrts )
         if not os.path.exists ( fname ):
-            print ( f"[emCreator] {fname} does not exist, cannot report correct number of events" )
+            self.pprint ( f"{fname} does not exist, cannot report correct number of events" )
             return -2
         with open ( fname, "rt" ) as f:
             lines=f.readlines()
@@ -160,7 +153,7 @@ class emCreator:
             if "nevents" in line:
                 tokens = lines[ctr+1].split()
                 if len(tokens)<3:
-                    print ( f"[emCreator] I get confused with {fname}, cannot report correct number of events" )
+                    self.pprint ( f"I get confused with {fname}, cannot report correct number of events" )
                     return -3
                 return int(tokens[2])
 
@@ -221,11 +214,14 @@ class emCreator:
         timestamp = d["meta"]["timestamp"]
         nevents = d["meta"]["nevents"]
         effs = {}
-        removeFilesWithLowerThan = 30001
-        removeFilesWithLowerThan = 1
         for k,v in d.items():
             if k == "meta":
-                if v["nevents"]<removeFilesWithLowerThan:
+                if v["nevents"]<self.removeFilesWithLowerThan:
+                    hasWarned["removeFilesWithLowerThan"]+=1
+                    if hasWarned["removeFilesWithLowerThan"]<4:
+                        self.pprint ( f"removing {effFile}: too few events: {v['nevents']}<{self.removeFilesWithLowerThan}" )
+                    if hasWarned["removeFilesWithLowerThan"]==4:
+                        self.pprint ( f"(suppressing more such warning msgs)" )
                     cmd = f"rm {effFile}"
                     subprocess.getoutput ( cmd )
                     continue
@@ -241,9 +237,9 @@ class emCreator:
         njets = self.njets
         process = "%s_%djet" % ( topo, njets )
         dirname = bakeryHelpers.dirName ( process, masses )
-        summaryfile = bakeryHelpers.datFile ( self.resultsdir, topo, masses, \
+        summaryfile = bakeryHelpers.datFile ( self.ma5results, topo, masses, \
                                               self.sqrts )
-        saffile = bakeryHelpers.safFile ( self.resultsdir, topo, masses, \
+        saffile = bakeryHelpers.safFile ( self.ma5results, topo, masses, \
                                           self.sqrts )
         if not os.path.exists ( summaryfile):
             # self.info(f"could not find ma5 summary file {summaryfile}. Skipping.")
@@ -270,8 +266,8 @@ class emCreator:
             line = line.replace("150-1","150 -1")
             tokens=line.split()
             if len(tokens) not in [ 7, 8, 10 ]:
-                print ( "[emCreator] In file %s: cannot parse ``%s'': got %d tokens, expected 8 or 10. skip it" % ( summaryfile, line[:50], len(tokens) ) )
-                print ( "   - %s "  % str(tokens) )
+                self.pprint ( "In file %s: cannot parse ``%s'': got %d tokens, expected 8 or 10. skip it" % ( summaryfile, line[:50], len(tokens) ) )
+                self.pprint ( f"   - {str(tokens)}" )
                 continue
             if len(tokens)==10:
                 dsname,ananame,sr,sig95exp,sig95obs,pp,eff,statunc,systunc,totunc=tokens
@@ -355,7 +351,7 @@ class emCreator:
         #    f.write ( "%s\n" % stats )
         f.write ( "}\n" )
         f.close()
-        print ( f"[emCreator] wrote stats to {statsfile}" )
+        self.pprint ( f"wrote stats to {statsfile}" )
 
 def embakedFileName ( analysis : str, topo : str, recast : str ):
     """ get the file name of the .embaked file
@@ -402,11 +398,16 @@ def createEmbakedFile( effs, topo, recast : str, tstamps, creator, copy,
         ## read in the old stuff
         if os.path.exists ( fname ):
             f = open ( fname, "rt" )
-            D = eval ( f.read() )
-            f.close()
-            for k,v in D.items():
-                if not k in values:
-                    values[k]=v
+            try:
+                D = eval ( f.read() )
+                f.close()
+                for k,v in D.items():
+                    if not k in values:
+                        values[k]=v
+            except SyntaxError as e:
+                print ( f"[emCreator] removing {fname}" )
+                cmd = f"rm {fname}"
+                subprocess.getoutput ( cmd )
         ts = {}
         if ana in tstamps:
             ts = tstamps[ana]
@@ -796,13 +797,13 @@ def run ( args ):
         txt=f.read()
         try:
             D=eval(txt)
+            f.close()
+            nplus = len(D.keys())
+            if False: # args.verbose:
+                print ( f"[emCreator] in {fname}: {nplus} points" )
+            ntotembaked+=nplus
         except Exception as e:
             print ( f"[emCreator] error with {fname}: {e} {txt:.20s}" )
-        f.close()
-        nplus = len(D.keys())
-        if False: # args.verbose:
-            print ( f"[emCreator] in {fname}: {nplus} points" )
-        ntotembaked+=nplus
         # ntot+=nplus
 
     analyses = getMG5ListOfAnalyses()

@@ -32,6 +32,10 @@ backup_embaked:
 	./utils/backupEmbaked.py
 
 clean:
-	rm -rf mg5results/ temp/ gambit_results ../smodels-utils/clip/temp/ $(OUTPUTS) T*jet.*
+	rm -rf mg5results/ temp/ ../smodels-utils/clip/temp/ $(OUTPUTS) T*jet.*
+
+# purging is cleaning thoroughly
+purge: clean
+	rm -rf gambit_results .lock*
 
 .PHONY:

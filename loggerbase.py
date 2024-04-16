@@ -8,11 +8,11 @@ import time
 __all__ = [ "LoggerBase" ]
 
 class LoggerBase:
-    __slots__ = [ "walkerid", "module" ]
+    __slots__ = [ "bakerid", "module" ]
 
-    def __init__ ( self, walkerid : int = 0 ):
-        """ instantiate the logger class with a walkerid """
-        self.walkerid = walkerid
+    def __init__ ( self, bakerid : int = 0 ):
+        """ instantiate the logger class with a bakerid """
+        self.bakerid = bakerid
         module = str(type(self)).replace("<class '","").replace("'>","")
         p1 = module.find(".")
         if module.count(".")==2:
@@ -50,7 +50,7 @@ class LoggerBase:
 
     def pprint ( self, *args ):
         """ logging """
-        print ( f"[{self.module}:{self.walkerid}] {' '.join(map(str,args))}" )
+        print ( f"[{self.module}:{self.bakerid}] {' '.join(map(str,args))}" )
         self.log ( *args )
 
     def log ( self, *args ):
