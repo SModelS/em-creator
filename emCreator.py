@@ -26,8 +26,6 @@ class emCreator ( LoggerBase ):
         :param recaster: which recaster do we consider
         """
         super(emCreator, self).__init__ ( )
-        self.removeFilesWithLowerThan = 29001 # remove files with fewer than 
-        # self.removeFilesWithLowerThan = 1 # remove files with fewer than 
         # this number of events
         self.basedir = bakeryHelpers.baseDir()
         self.ma5results = ( self.basedir + "/ma5results/" ).replace("//","/")
@@ -216,10 +214,10 @@ class emCreator ( LoggerBase ):
         effs = {}
         for k,v in d.items():
             if k == "meta":
-                if v["nevents"]<self.removeFilesWithLowerThan:
+                if v["nevents"]<bakeryHelpers.constants["minimumNrOfEvents"]:
                     hasWarned["removeFilesWithLowerThan"]+=1
                     if hasWarned["removeFilesWithLowerThan"]<4:
-                        self.pprint ( f"removing {effFile}: too few events: {v['nevents']}<{self.removeFilesWithLowerThan}" )
+                        self.pprint ( f"removing {effFile}: too few events: {v['nevents']}<{bakeryHelpers.constants['minimumNrOfEvents']}" )
                     if hasWarned["removeFilesWithLowerThan"]==4:
                         self.pprint ( f"(suppressing more such warning msgs)" )
                     cmd = f"rm {effFile}"

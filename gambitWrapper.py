@@ -159,11 +159,14 @@ class GambitWrapper ( LoggerBase ):
             return
         stats["meta"]={ "timestamp": datetime.now().strftime('%Y-%m-%d_%H:%M:%S'), 
                         "nevents": ntot, "lumi": self.lumi }
-        self.pprint ( f"writing results to {self.resultsFile}" )
-        with open ( self.resultsFile, "wt" ) as f:
-            f.write ( f"{stats}\n" )
-            f.close()
-        self.pprint ( f"stats {stats}" )
+        if ntot < bakeryHelpers.constants["minimumNrOfEvents"]:
+            self.pprint ( f"we have too few events {ntot} < {bakeryHelpers.constants['minimumNrOfEvents']}: not saving!" )
+        else:
+            self.pprint ( f"writing results to {self.resultsFile}" )
+            with open ( self.resultsFile, "wt" ) as f:
+                f.write ( f"{stats}\n" )
+                f.close()
+        # self.pprint ( f"stats {stats}" )
 
     def getYamlFileName ( self, masses ):
         """ get the yaml file name """

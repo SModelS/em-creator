@@ -12,6 +12,11 @@ from os import PathLike
 from typing import List, Union
 sys.path.insert(0,"../../smodels" )
 
+## some global variables (currently only one)
+## minimumNrOfEvents: set a minimum number of events requirement.
+# constants = { "minimumNrOfEvents": 29000 }
+constants = { "minimumNrOfEvents": 1 }
+
 def nCPUs():
     """ obtain the number of CPU cores on the machine, for several
         platforms and python versions. """
