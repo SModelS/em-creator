@@ -11,7 +11,7 @@ settings:
   cross_section_pb: 0.001 # 1 fb
   cross_section_fractional_uncert: 0.2
   use_lognormal_distribution_for_1d_systematic: true
-  events_between_convergence_checks: 5000
+  events_between_convergence_checks: @@NEVENTS@@
   target_fractional_uncert: 0.3
   halt_when_systematic_dominated: true
   all_analyses_must_converge: false
