@@ -107,12 +107,14 @@ class emCreator ( LoggerBase ):
     def getStatistics ( self, ana = "atlas_susy_2016_07", SRs = {} ):
         ### obtain nobs, nb, etc from the PAD info files, e.g.
         ### ma5/tools/PAD/Build/SampleAnalyzer/User/Analyzer/atlas_susy_2016_07.info
+        stats = {}
         if "adl" in self.recaster:
-            return self.getCutlangStatistics ( ana, SRs )
+            stats["adl"] = self.getCutlangStatistics ( ana, SRs )
         if "MA5" in self.recaster:
-            return self.getMA5Statistics ( ana, SRs )
+            stats["MA5"] = self.getMA5Statistics ( ana, SRs )
         if "colliderbit" in self.recaster:
-            return self.getColliderBitStatistics ( ana, SRs )
+            stats["colliderbit"] = self.getColliderBitStatistics ( ana, SRs )
+        return stats
 
     def getMA5Statistics ( self, ana : str, SR : dict = {} ):
         import xml.etree.ElementTree as ET
@@ -122,7 +124,7 @@ class emCreator ( LoggerBase ):
             Dir = "ma5/tools/PADForMA5tune/Build/SampleAnalyzer/User/Analyzer/"
             filename = "%s/%s.info" % ( Dir, ana )
         if not os.path.exists ( filename ):
-            self.error ( f"could not find statistics file for {ana}" )
+            self.debug ( f"could not find statistics file for {ana}:MA5" )
             return
         tree = ET.parse( filename )
         root = tree.getroot()
@@ -459,11 +461,13 @@ def createEmbakedFile( effs, topo, recast : str, tstamps, creator, copy,
         if "atlas" in ana.lower():
             experiment = "ATLAS"
         sana = bakeryHelpers.ma5AnaNameToSModelSName ( ana )
-        Dirname = "../smodels-database/%dTeV/%s/%s-eff/orig/" % ( sqrts, experiment, sana )
+        base = "../smodels-database"
+        Dirname = f"{base}/{sqrts}TeV/{experiment}/{sana}-eff/orig/"
         if recast == "MA5":
-            Dirname = "../smodels-database/%dTeV/%s/%s-ma5/orig/" % ( sqrts, experiment, sana )
-        stats = creator.getStatistics ( ana, SRs )
-        # print ( "[emCreator] obtained statistics for", ana, "in", fname )
+            Dirname = f"{base}/{sqrts}TeV/{experiment}/{sana}-ma5/orig/"
+        mstats = creator.getStatistics ( ana, SRs )
+        stats = mstats[recast]
+        
         if copy:
             extensions = [ "ma5", "eff", "adl", "colliderbit" ]
             foundExtension = None
