@@ -468,6 +468,7 @@ class MG5Wrapper:
             ana = ana.strip()
             cl = GambitWrapper ( self.topo, self.njets, rerun, ana, 
                                  keep = self.keep )
+            cl.nevents = self.nevents
             self.debug ( f"now call gambitWrapper for {ana}" )
             hepmcfile = self.locker.hepmcFileName ( masses )
             ret = cl.run ( masses, hepmcfile, pid )
@@ -485,13 +486,13 @@ class MG5Wrapper:
         if f == None:
             return
         if os.path.exists ( f ):
-            subprocess.getoutput ( "rm -rf %s" % f )
+            subprocess.getoutput ( f"rm -rf {f}" )
 
     def exe ( self, cmd, masses="" ):
         sm = ""
         if masses != "":
-            sm="[%s]" % str(masses)
-        self.msg ( "exec %s%s:: %s" % (self.topo, sm, cmd[:] ) )
+            sm=f"[{str(masses)}]"
+        self.msg ( f"exec {self.topo}{sm}:: {cmd[:]}" )
         pipe = subprocess.Popen ( cmd, shell=True,
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE )
@@ -502,13 +503,13 @@ class MG5Wrapper:
             ret+=line
         if len(ret)==0:
             return
-        maxLength=200
+        maxLength=400
         # maxLength=100000
         if len(ret)<maxLength:
-            self.msg ( " `- %s" % ret )
+            self.msg ( f" `- {ret}" )
             return
         offset = 200
-        self.msg ( " `- %s ..." % ( ret[-maxLength-offset:-offset] ) )
+        self.msg ( f" `- {ret[-maxLength-offset:-offset]} ..." )
 
     def addJet ( self, lines, njets, f ):
         """ if 'generate' or 'add process' line, then append n jets to file f """

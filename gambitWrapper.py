@@ -7,7 +7,7 @@
 .. moduleauthor:: Wolfgang Waltenberger <wolfgang.waltenberger@gmail.com>
 """
 
-import os, subprocess, shutil
+import os, subprocess, shutil, tempfile
 from datetime import datetime
 from os import PathLike
 import gambitHelpers
@@ -29,6 +29,7 @@ class GambitWrapper ( LoggerBase ):
         self.gambitToId = d["gambitToId"]
         self.sqrtsOfGambit = d["sqrtsOfGambit"]
         self.srNames = d["srNames"]
+        self.nevents = None
         self.topo = topo
         self.keephepmc = keephepmc
         self.sqrts = sqrts
@@ -98,7 +99,9 @@ class GambitWrapper ( LoggerBase ):
 
     def runCBS ( self ):
         """ now, actually run colliderbit solo. """
-        cmd = f"./CBS {self.yamlFile}"
+        tmpfile = tempfile.mktemp()
+        self.tempFiles.append ( tmpfile )
+        cmd = f"./CBS {self.yamlFile} 2>&1 | tee {tmpfile}"
         if self.onClipCluster() and not \
                 self.hasSourcedEnvironment(): ## source the environment
             cmd = f"source ../utils/gambit_env.sh; {cmd}"
@@ -205,8 +208,12 @@ class GambitWrapper ( LoggerBase ):
         self.tempFiles.append ( self.yamlFile )
         self.pprint ( f"writing config to: {self.yamlFile}" )
         f = open ( self.yamlFile, "wt" )
+        nevents = 50000
+        if self.nevents != None:
+            nevents = self.nevents
         for line in lines:
             line = line.replace ( "@@HEPMCFILE@@", hepmcfile )
+            line = line.replace ( "@@NEVENTS@@", nevents )
             line = line.replace ( "@@ANALYSES@@", f"  - {self.gambitAna}" )
             f.write ( line )
         f.close()
