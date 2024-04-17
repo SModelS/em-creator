@@ -208,12 +208,12 @@ class GambitWrapper ( LoggerBase ):
         self.tempFiles.append ( self.yamlFile )
         self.pprint ( f"writing config to: {self.yamlFile}" )
         f = open ( self.yamlFile, "wt" )
-        nevents = 50000
+        nevents = 100000
         if self.nevents != None:
             nevents = self.nevents
         for line in lines:
             line = line.replace ( "@@HEPMCFILE@@", hepmcfile )
-            line = line.replace ( "@@NEVENTS@@", nevents )
+            line = line.replace ( "@@NEVENTS@@", str(nevents) )
             line = line.replace ( "@@ANALYSES@@", f"  - {self.gambitAna}" )
             f.write ( line )
         f.close()
