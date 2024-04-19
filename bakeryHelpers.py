@@ -598,19 +598,19 @@ def clean ():
     b = baseDir()
     files = []
     for i in [ "mg5cmd*", "mg5proc*", "tmp*slha", "run*card" ]:
-        pattern = "%s/%s" % ( t, i ) 
+        pattern = f"{t}/{i}" 
         files += glob.glob ( pattern )
     for i in [ "recast*", "ma5cmd*" ]:
-        pattern = "%s/ma5/%s" % ( b, i )
+        pattern = f"{b}/ma5/{i}"
         files += glob.glob ( pattern )
     for i in [ "ma5_T*" ]:
-        pattern = "%s/%s" % ( b, i )
+        pattern = f"{b}/{i}" 
         files += glob.glob ( pattern )
     for i in [ "T*jet.*" ]:
-        pattern = "%s/%s" % ( b, i )
+        pattern = f"{b}/{i}" 
         files += glob.glob ( pattern )
-    files += glob.glob ( "%s/.lock*" % b )
-    files += glob.glob ( "%s/../clip/_B*sh" % b )
+    files += glob.glob ( f"{b}/.lock*" )
+    files += glob.glob ( f"{b}/../clip/_B*sh" )
     files += glob.glob ( "/users/wolfgan.waltenberger/B*sh" )
     files += glob.glob ( "/scratch-cbe/users/wolfgan.waltenberger/outputs/slurm*out" )
     cleaned = []
@@ -618,7 +618,7 @@ def clean ():
         dt = getAge ( f )
         if dt < 5.:
             continue
-        subprocess.getoutput ( "rm -rf %s" % f )
+        subprocess.getoutput ( f"rm -rf {f}" )
         cleaned.append ( f )
     print ( f"[bakeryHelpers] Cleaned {len(cleaned)} temporary files" )
     checkEventFiles()
@@ -630,8 +630,8 @@ def checkEventFiles():
         dt = getAge ( f )
         if dt < 5.:
             continue
-        subprocess.getoutput ( "rm %s" % f )
-        print ( "%s: %.2fh" % ( f, dt ) )
+        subprocess.getoutput ( f"rm {f}" )
+        print ( f"{f}: {dt:.2f}h" )
 
 def cleanAll():
     clean()
@@ -654,7 +654,7 @@ def cleanAll():
         dt = getAge ( f )
         #if dt < 0.:
         #    continue
-        subprocess.getoutput ( "rm -rf %s" % f )
+        subprocess.getoutput ( f"rm -rf {f}" )
         cleaned.append ( f )
     print ( f"[bakeryHelpers] Cleaned {len(cleaned)} temporary files" )
 
@@ -667,8 +667,8 @@ def rmLocksOlderThan ( hours=8 ):
             ts = os.stat(f).st_mtime
             dt = ( t - ts ) / 60. / 60.
             if dt > hours:
-                self.msg ( "removing old lock %s [%d hrs old]" % ( f, int(dt) ) )
-                subprocess.getoutput ( "rm -f %s" % f )
+                self.msg ( f"removing old lock {f} [{int(dt)} hrs old]" )
+                subprocess.getoutput ( f"rm -f {f}" )
         except:
             pass
 
