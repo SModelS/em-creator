@@ -221,7 +221,8 @@ class GambitWrapper ( LoggerBase ):
     def listAnalyses ( self ):
         d = gambitHelpers.retrieveAnalysesDictionary( self.pathToGambit )
         keys = list ( d["idToGambit"].keys() )
-        keys.remove(None)
+        if None in keys:
+            keys.remove(None)
         keys.sort()
 
         for ctr,k in enumerate ( keys ):
