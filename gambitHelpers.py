@@ -349,7 +349,8 @@ def retrieveAnalysesDictionary ( pathToGambit : str ) ->  Dict:
     """ retrieve the analysis dictionary. from cache file if exists,
     else build the cache file. 
     
-    :returns: dictionary with gambitToId, idToGambit, sqrtsOfGambit as keys.
+    :returns: dictionary with gambitToId, idToGambit, sqrtsOfGambit,
+              covMatrix, srNames as keys.
     """
     cachefile = "gambitdict.cache"
     if os.path.exists ( cachefile ):
@@ -376,7 +377,8 @@ if __name__ == "__main__":
     # print ( getCovMatrixFor ( "CMS-SUS-20-001", "../gambit_2.4/" ) )
 
     # ret = compileDictOfGambitAnalyses( "../gambit_2.4/" )
-    retrieveAnalysesDictionary ( "../gambit_2.4/" )
+    d = retrieveAnalysesDictionary ( "../gambit_2.4/" )
     # ret = getAnaIdFromArxivNr ( "1308.2631" )
     # ret = scrapeCdsPage ( "https://cds.cern.ch/record/2267406" )
-    # print ( ret )
+    print ( "dictionary: d" )
+    import IPython; IPython.embed( colors = "neutral" )
