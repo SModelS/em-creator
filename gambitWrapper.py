@@ -143,7 +143,10 @@ class GambitWrapper ( LoggerBase ):
             if "Observed events:" in line:
                 p1 = line.find ( "Observed events:" )
                 tmp = line [ p1+17:]
-                nobs = int ( tmp )
+                nobs = float ( tmp )
+                if nobs % 1. == 0.00:
+                    nobs = int ( nobs )
+                #nobs = int ( tmp )
                 stats[srname]["nobs"]=nobs
             if "SM prediction:" in line:
                 p1 = line.find ( "SM prediction:" )
