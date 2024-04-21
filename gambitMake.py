@@ -16,8 +16,12 @@ def execute ( cmd : str ):
 
 def install_eigen ( ):
     """ download, unzip, and build eigen. """
-    url = "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz"
-    print ( "FIXME implement!!" )
+    tarball = "eigen-3.4.0.tar.gz"
+    url = f"https://gitlab.com/libeigen/eigen/-/archive/3.4.0/{tarball}"
+    cmd = f"wget {url}"
+    if not os.path.exists ( tarbal ):
+        execute ( cmd )
+    print ( "install_eigen: FIXME implement!!" )
 
 def install( ver : str = "2.4" ):
     """
@@ -80,7 +84,7 @@ def install( ver : str = "2.4" ):
         make = f'make -j {nproc} {targets}'
         execute ( make )
         makescript = "make_gambit.sh"
-        with open ( makeescript, "wt" ) as f:
+        with open ( makescript, "wt" ) as f:
             f.write ( "#!/bin/sh\n" )
             f.write ( "\n" )
             f.write ( make + "\n" )
