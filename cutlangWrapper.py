@@ -962,7 +962,7 @@ class CutLangWrapper:
         print(str(filterList))
         removedElements = set()
         for x in filterList:
-            searchObj = re.search("bin(\d+)", x)
+            searchObj = re.search(r"bin(\d+)", x)
             if searchObj:
                 removedElements.add(x)
                 regionName = x[:searchObj.start()]
