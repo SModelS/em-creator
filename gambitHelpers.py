@@ -13,6 +13,7 @@ from typing import Dict, Union, List
 def scrapeCdsPage ( url : str ) -> str:
     """ from a cds page, get the analysis id """
     from urllib.request import urlopen
+    print ( f"[gambitHelpers.scrapeCdsPage] trying {url}" )
     f = urlopen ( url )
     lines = f.readlines()
     f.close()
@@ -148,47 +149,71 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             tmp = line[p1+15:]
             tmp = tmp.replace(")","").replace(";","")
             ret["sqrts"]=float(tmp)
-            if "anaid" in ret and "covMatrix" in ret:
-                return ret
+            #if "anaid" in ret and "covMatrix" in ret:
+            #    return ret
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/PAPERS" in line:
             p1 = line.find ( "PHYSICS/PAPERS" )
             anaid = line[p1+15:]
             p2 = anaid.find("/")
             anaid = "ATLAS-"+anaid[:p2]
             ret["anaid"] = anaid
-            if "sqrts" in ret and "covMatrix" in ret:
-                return ret
+            #if "sqrts" in ret and "covMatrix" in ret:
+            #    return ret
         if "cms-results.web.cern.ch/cms-results/public-results/publications" in line:
             p1 = line.find ( "results/publications" )
             anaid = line[p1+21:]
             p2 = anaid.find("/")
             anaid = "CMS-"+anaid[:p2]
             ret["anaid"]=anaid
+        if "ATLAS-" in line:
+            p1 = line.find( "ATLAS-" )
+            token = line[p1:]
+            token = token.strip()
+            anaid = token
+            ret["anaid"]=anaid
+        if "twiki.cern.ch/twiki/bin/view/CMSPublic/PhysicsResults" in line:
+            p1 = line.find("PhysicsResults")
+            token = "CMS-"+line[p1+14:]
+            token = token.replace("B2G","B2G-")
+            token = token.replace("1300","13-00")
+            token = token.replace("1400","14-00")
+            anaid = token.strip()
+            ret["anaid"]=anaid
+    ret["srNames"] = srNames
+    ret["srDescriptions"] = srDescriptions
+    if "anaid" in ret:
+        return ret
+
+    ## fallbacks if no official result found
     for line in lines:
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
-            p1 = line.find ( "PHYSICS/CONFNOTES" )
-            anaid = line[p1+18:]
-            p2 = anaid.find("/")
-            anaid = anaid[:p2]
-            ret["anaid"]=anaid
+            if not "anaid" in ret:
+                p1 = line.find ( "PHYSICS/CONFNOTES" )
+                anaid = line[p1+18:]
+                p2 = anaid.find("/")
+                anaid = anaid[:p2]
+                ret["anaid"]=anaid
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
-            p1 = line.find ( "PHYSICS/CONFNOTES" )
-            anaid = line[p1+18:]
-            p2 = anaid.find("/")
-            anaid = anaid[:p2]
-            ret["anaid"]=anaid
+            if not "anaid" in ret:
+                p1 = line.find ( "PHYSICS/CONFNOTES" )
+                anaid = line[p1+18:]
+                p2 = anaid.find("/")
+                anaid = anaid[:p2]
+                ret["anaid"]=anaid
         if "cms-results.web.cern.ch/cms-results/public-results/superseded" in line:
-            p1 = line.find ( "results/superseded" )
-            anaid = line[p1+19:]
-            p2 = anaid.find("/")
-            anaid = "CMS-"+anaid[:p2]
-            ret["anaid"]=anaid
+            if not "anaid" in ret:
+                p1 = line.find ( "results/superseded" )
+                anaid = line[p1+19:]
+                p2 = anaid.find("/")
+                anaid = "CMS-"+anaid[:p2]
+                ret["anaid"]=anaid
         if "cms-results.web.cern.ch/cms-results/public-results/preliminary-results" in line:
-            p1 = line.find ( "results/preliminary-results" )
-            anaid = line[p1+28:]
-            p2 = anaid.find("/")
-            anaid = "CMS-PAS-"+anaid[:p2]
-            ret["anaid"]=anaid
+            if not "anaid" in ret:
+                p1 = line.find ( "results/preliminary-results" )
+                anaid = line[p1+28:]
+                p2 = anaid.find("/")
+                anaid = "CMS-PAS-"+anaid[:p2]
+                ret["anaid"]=anaid
         if "arxiv:" in line or "arXiv:" in line:
             line = line.lower()
             p1 = line.find ( "arxiv:" )
@@ -242,22 +267,6 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
                 url = url[:p1-1]
             anaid = scrapeCdsPage ( url )
             ret["anaid"]=anaid
-        if "ATLAS-" in line:
-            p1 = line.find( "ATLAS-" )
-            token = line[p1:]
-            token = token.strip()
-            anaid = token
-            ret["anaid"]=anaid
-        if "twiki.cern.ch/twiki/bin/view/CMSPublic/PhysicsResults" in line:
-            p1 = line.find("PhysicsResults")
-            token = "CMS-"+line[p1+14:]
-            token = token.replace("B2G","B2G-")
-            token = token.replace("1300","13-00")
-            token = token.replace("1400","14-00")
-            anaid = token.strip()
-            ret["anaid"]=anaid
-    ret["srNames"] = srNames
-    ret["srDescriptions"] = srDescriptions
     if len(ret)==1:
         print ( f"[gambitHelpers] we did not find an entry for {ananame}" )
     return ret
@@ -329,6 +338,7 @@ def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
     covMatrix = {}
     srNames, srDescriptions = {}, {}
     for f in files:
+        print ( f"[gambitHelpers] parsing {f.replace(dirname,'')}" )
         names = getAnalysisIdFor ( f )
         if names == None:
             continue
