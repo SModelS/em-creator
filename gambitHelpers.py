@@ -13,7 +13,15 @@ from typing import Dict, Union, List
 def scrapeCdsPage ( url : str ) -> str:
     """ from a cds page, get the analysis id """
     from urllib.request import urlopen
-    f = urlopen ( url )
+    from urllib.error import URLError
+    verbose = False
+    if verbose:
+        print ( f"[gambitHelpers.scrapeCdsPage] trying {url}" )
+    try:
+        f = urlopen ( url, timeout = 3 )
+    except URLError as e:
+        print ( f"[gambitHelpers.scrapeCdsPage] {url}: {e}" )
+        return None
     lines = f.readlines()
     f.close()
     for bline in lines:
@@ -23,7 +31,6 @@ def scrapeCdsPage ( url : str ) -> str:
             token = line[p1:]
             p2 = token.find('"')
             token = token[:p2]
-            token = token.replace(".pdf","")
             if "<" in token:
                 p2 = token.find ( "<" )
                 token = token[:p2]
@@ -33,12 +40,11 @@ def scrapeCdsPage ( url : str ) -> str:
             token = line[p1:]
             p2 = token.find('"')
             token = token[:p2]
-            token = token.replace(".pdf","")
             if "<" in token:
                 p2 = token.find ( "<" )
                 token = token[:p2]
             return token # return first
-    return "?"
+    return None
 
 def buildCovMatrix ( covm : Dict ) -> List:
     """ from the list of rows, assemble the covariance matrix.
@@ -148,34 +154,51 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             tmp = line[p1+15:]
             tmp = tmp.replace(")","").replace(";","")
             ret["sqrts"]=float(tmp)
-            if "anaid" in ret and "covMatrix" in ret:
-                return ret
+            #if "anaid" in ret and "covMatrix" in ret:
+            #    return ret
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/PAPERS" in line:
             p1 = line.find ( "PHYSICS/PAPERS" )
             anaid = line[p1+15:]
             p2 = anaid.find("/")
             anaid = "ATLAS-"+anaid[:p2]
             ret["anaid"] = anaid
-            if "sqrts" in ret and "covMatrix" in ret:
-                return ret
+            #if "sqrts" in ret and "covMatrix" in ret:
+            #    return ret
         if "cms-results.web.cern.ch/cms-results/public-results/publications" in line:
             p1 = line.find ( "results/publications" )
             anaid = line[p1+21:]
             p2 = anaid.find("/")
             anaid = "CMS-"+anaid[:p2]
             ret["anaid"]=anaid
+        if "ATLAS-" in line:
+            p1 = line.find( "ATLAS-" )
+            token = line[p1:]
+            token = token.strip()
+            anaid = token
+            ret["anaid"]=anaid
+        if "twiki.cern.ch/twiki/bin/view/CMSPublic/PhysicsResults" in line:
+            p1 = line.find("PhysicsResults")
+            token = "CMS-"+line[p1+14:]
+            token = token.replace("B2G","B2G-")
+            token = token.replace("1300","13-00")
+            token = token.replace("1400","14-00")
+            anaid = token.strip()
+            ret["anaid"]=anaid
+    ret["srNames"] = srNames
+    ret["srDescriptions"] = srDescriptions
+    if "anaid" in ret:
+        ret["anaid"]=ret["anaid"].replace(".pdf","").replace("/","").replace(").","")
+        return ret
+
+    ## fallbacks if no official result found
     for line in lines:
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
             p1 = line.find ( "PHYSICS/CONFNOTES" )
             anaid = line[p1+18:]
             p2 = anaid.find("/")
             anaid = anaid[:p2]
-            ret["anaid"]=anaid
-        if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
-            p1 = line.find ( "PHYSICS/CONFNOTES" )
-            anaid = line[p1+18:]
-            p2 = anaid.find("/")
-            anaid = anaid[:p2]
+            anaid = anaid.replace(".pdf","")
+            anaid = anaid.replace("/","")
             ret["anaid"]=anaid
         if "cms-results.web.cern.ch/cms-results/public-results/superseded" in line:
             p1 = line.find ( "results/superseded" )
@@ -241,23 +264,10 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
                 p1 = url.find("files")
                 url = url[:p1-1]
             anaid = scrapeCdsPage ( url )
-            ret["anaid"]=anaid
-        if "ATLAS-" in line:
-            p1 = line.find( "ATLAS-" )
-            token = line[p1:]
-            token = token.strip()
-            anaid = token
-            ret["anaid"]=anaid
-        if "twiki.cern.ch/twiki/bin/view/CMSPublic/PhysicsResults" in line:
-            p1 = line.find("PhysicsResults")
-            token = "CMS-"+line[p1+14:]
-            token = token.replace("B2G","B2G-")
-            token = token.replace("1300","13-00")
-            token = token.replace("1400","14-00")
-            anaid = token.strip()
-            ret["anaid"]=anaid
-    ret["srNames"] = srNames
-    ret["srDescriptions"] = srDescriptions
+            if anaid != None:
+                ret["anaid"]=anaid
+    if "anaid" in ret:
+        ret["anaid"]=ret["anaid"].replace(".pdf","").replace("/","")
     if len(ret)==1:
         print ( f"[gambitHelpers] we did not find an entry for {ananame}" )
     return ret
@@ -328,7 +338,10 @@ def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
     sqrtsOfGambit = {}
     covMatrix = {}
     srNames, srDescriptions = {}, {}
+    verbose = False
     for f in files:
+        if verbose:
+            print ( f"[gambitHelpers] parsing {f.replace(dirname,'')}" )
         names = getAnalysisIdFor ( f )
         if names == None:
             continue
