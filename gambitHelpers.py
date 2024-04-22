@@ -13,8 +13,12 @@ from typing import Dict, Union, List
 def scrapeCdsPage ( url : str ) -> str:
     """ from a cds page, get the analysis id """
     from urllib.request import urlopen
+    from urllib.error import URLError
     print ( f"[gambitHelpers.scrapeCdsPage] trying {url}" )
-    f = urlopen ( url )
+    try:
+        f = urlopen ( url, timeout = 3 )
+    except URLError as e:
+        return "?"
     lines = f.readlines()
     f.close()
     for bline in lines:
@@ -187,33 +191,25 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
     ## fallbacks if no official result found
     for line in lines:
         if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
-            if not "anaid" in ret:
-                p1 = line.find ( "PHYSICS/CONFNOTES" )
-                anaid = line[p1+18:]
-                p2 = anaid.find("/")
-                anaid = anaid[:p2]
-                ret["anaid"]=anaid
-        if "atlas.web.cern.ch/Atlas/GROUPS/PHYSICS/CONFNOTES" in line:
-            if not "anaid" in ret:
-                p1 = line.find ( "PHYSICS/CONFNOTES" )
-                anaid = line[p1+18:]
-                p2 = anaid.find("/")
-                anaid = anaid[:p2]
-                ret["anaid"]=anaid
+            p1 = line.find ( "PHYSICS/CONFNOTES" )
+            anaid = line[p1+18:]
+            p2 = anaid.find("/")
+            anaid = anaid[:p2]
+            anaid = anaid.replace(".pdf","")
+            anaid = anaid.replace("/","")
+            ret["anaid"]=anaid
         if "cms-results.web.cern.ch/cms-results/public-results/superseded" in line:
-            if not "anaid" in ret:
-                p1 = line.find ( "results/superseded" )
-                anaid = line[p1+19:]
-                p2 = anaid.find("/")
-                anaid = "CMS-"+anaid[:p2]
-                ret["anaid"]=anaid
+            p1 = line.find ( "results/superseded" )
+            anaid = line[p1+19:]
+            p2 = anaid.find("/")
+            anaid = "CMS-"+anaid[:p2]
+            ret["anaid"]=anaid
         if "cms-results.web.cern.ch/cms-results/public-results/preliminary-results" in line:
-            if not "anaid" in ret:
-                p1 = line.find ( "results/preliminary-results" )
-                anaid = line[p1+28:]
-                p2 = anaid.find("/")
-                anaid = "CMS-PAS-"+anaid[:p2]
-                ret["anaid"]=anaid
+            p1 = line.find ( "results/preliminary-results" )
+            anaid = line[p1+28:]
+            p2 = anaid.find("/")
+            anaid = "CMS-PAS-"+anaid[:p2]
+            ret["anaid"]=anaid
         if "arxiv:" in line or "arXiv:" in line:
             line = line.lower()
             p1 = line.find ( "arxiv:" )
