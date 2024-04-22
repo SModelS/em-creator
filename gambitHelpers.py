@@ -14,11 +14,13 @@ def scrapeCdsPage ( url : str ) -> str:
     """ from a cds page, get the analysis id """
     from urllib.request import urlopen
     from urllib.error import URLError
-    print ( f"[gambitHelpers.scrapeCdsPage] trying {url}" )
+    verbose = False
+    if verbose:
+        print ( f"[gambitHelpers.scrapeCdsPage] trying {url}" )
     try:
         f = urlopen ( url, timeout = 3 )
     except URLError as e:
-        return "?"
+        return None
     lines = f.readlines()
     f.close()
     for bline in lines:
@@ -28,7 +30,6 @@ def scrapeCdsPage ( url : str ) -> str:
             token = line[p1:]
             p2 = token.find('"')
             token = token[:p2]
-            token = token.replace(".pdf","")
             if "<" in token:
                 p2 = token.find ( "<" )
                 token = token[:p2]
@@ -38,12 +39,11 @@ def scrapeCdsPage ( url : str ) -> str:
             token = line[p1:]
             p2 = token.find('"')
             token = token[:p2]
-            token = token.replace(".pdf","")
             if "<" in token:
                 p2 = token.find ( "<" )
                 token = token[:p2]
             return token # return first
-    return "?"
+    return None
 
 def buildCovMatrix ( covm : Dict ) -> List:
     """ from the list of rows, assemble the covariance matrix.
@@ -186,6 +186,7 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
     ret["srNames"] = srNames
     ret["srDescriptions"] = srDescriptions
     if "anaid" in ret:
+        ret["anaid"]=ret["anaid"].replace(".pdf","").replace("/","").replace(").","")
         return ret
 
     ## fallbacks if no official result found
@@ -262,7 +263,10 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
                 p1 = url.find("files")
                 url = url[:p1-1]
             anaid = scrapeCdsPage ( url )
-            ret["anaid"]=anaid
+            if anaid != None:
+                ret["anaid"]=anaid
+    if "anaid" in ret:
+        ret["anaid"]=ret["anaid"].replace(".pdf","").replace("/","")
     if len(ret)==1:
         print ( f"[gambitHelpers] we did not find an entry for {ananame}" )
     return ret
@@ -333,8 +337,10 @@ def compileDictOfGambitAnalyses ( pathToGambit : str ) -> Dict:
     sqrtsOfGambit = {}
     covMatrix = {}
     srNames, srDescriptions = {}, {}
+    verbose = False
     for f in files:
-        print ( f"[gambitHelpers] parsing {f.replace(dirname,'')}" )
+        if verbose:
+            print ( f"[gambitHelpers] parsing {f.replace(dirname,'')}" )
         names = getAnalysisIdFor ( f )
         if names == None:
             continue
