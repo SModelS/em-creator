@@ -16,7 +16,8 @@ from typing import List, Tuple
 import gambitHelpers
 from loggerbase import LoggerBase
 
-hasWarned = { "cutlangstats": False, "removeFilesWithLowerThan": 0 }
+hasWarned = { "cutlangstats": False, "removeFilesWithLowerThan": 0,
+              "no events": 0 }
 
 class emCreator ( LoggerBase ):
     def __init__ ( self, analyses : str, topo : str, njets : int, 
@@ -227,6 +228,15 @@ class emCreator ( LoggerBase ):
                     continue
                 if "nevents" in v:
                     effs["__nevents__"]=v["nevents"]
+                else:
+                    hasWarned["no nevents"]+=1
+                    if hasWarned["no events"]<4:
+                        self.pprint ( f"removing {effFile}: has no nevents field!" )
+                    if hasWarned["no events"]==4:
+                        self.pprint ( f"(suppressing more such warning msgs)" )
+                    cmd = f"rm {effFile}"
+                    subprocess.getoutput ( cmd )
+                    continue
                 continue
             effs[k]=v["eff"]
         return { self.analyses: effs }, timestamp
