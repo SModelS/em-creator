@@ -190,19 +190,6 @@ def parseMasses ( massstring, mingap1=None, maxgap1=None,
             for z in lists[2]:
                 y=int(.5*x+.5*z)
                 ret.append ( (int(x),y,int(z)) )
-   # elif lists[1][0]=="same":
-   #     for x  in lists[0]:
-   #         for z in lists[2]:
-   #             ret.append ( (int(x),int(x),int(z)) )
-   # elif len(lists)==2:
-   #     for x in range ( len(lists[0] ) ):
-   #         for y in range ( len(lists[1]) ):
-   #             ret.append ( (int(lists[0][x]),int(lists[1][y])) )
-   # elif len(lists)==3:
-   #     for x in range ( len(lists[0] ) ):
-   #         for y in range ( len(lists[1]) ):
-   #             for z in range ( len(lists[2]) ):
-   #                 ret.append ( (int(lists[0][x]),int(lists[1][y]),int(lists[2][z])) )
     elif lists[1][0]=="same" and len(lists)<4:
         for x  in lists[0]:
             for z in lists[2]:
@@ -212,7 +199,7 @@ def parseMasses ( massstring, mingap1=None, maxgap1=None,
             for z in lists[2]:
                 for k in lists[3]:
                     ret.append ( (int(x),int(x),int(z),int(k)) )
-    elif lists[1][0]=="same" and any(f"M0+{i}" in lists[2][0] for i in range(5, 50, 1)) and len(lists)==4:
+    elif lists[1][0]=="same" and any(f"M0+{i}" in lists[2][0] for i in range(5, 101, 1)) and len(lists)==4:
         substrings = lists[2][0].split("+")
         for x  in lists[0]:
                 for k in lists[3]:
@@ -221,6 +208,12 @@ def parseMasses ( massstring, mingap1=None, maxgap1=None,
         for x in range ( len(lists[0] ) ):
             for y in range ( len(lists[1]) ):
                 ret.append ( (int(lists[0][x]),int(lists[1][y])) )
+    elif any(f"M0+{i}" in lists[1][0] for i in range(5, 101, 1)) and len(lists)==3:
+        substrings = lists[1][0].split("+")
+        for x in lists[0]:
+            for k in lists[2]:
+                tmp = (int(x),int(k)+int(substrings[1]),int(k))
+                ret.append ( tmp )
     elif len(lists)==3:
         for x in range ( len(lists[0] ) ):
             for y in range ( len(lists[1]) ):
@@ -232,7 +225,7 @@ def parseMasses ( massstring, mingap1=None, maxgap1=None,
                 for z in range ( len(lists[2]) ):
                     for k in range ( len(lists[3]) ):
                         ret.append ( (int(lists[0][x]),int(lists[1][y]),int(lists[2][z]),int(lists[3][k])) )
-    elif len(lists)==4 and any(f"M0+{i}" in lists[2][0] for i in range(5, 50, 1)):
+    elif len(lists)==4 and any(f"M0+{i}" in lists[2][0] for i in range(5, 101, 1)):
         substrings = lists[2][0].split("+")
         for x in range ( len(lists[0] ) ):
             for y in range ( len(lists[1]) ):

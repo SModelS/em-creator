@@ -266,7 +266,7 @@ def getAnalysisIdFor ( filename : str ) -> Union[None,Dict]:
             anaid = scrapeCdsPage ( url )
             if anaid != None:
                 ret["anaid"]=anaid
-    if "anaid" in ret:
+    if "anaid" in ret and ret["anaid"] is not None:
         ret["anaid"]=ret["anaid"].replace(".pdf","").replace("/","")
     if len(ret)==1:
         print ( f"[gambitHelpers] we did not find an entry for {ananame}" )
@@ -280,7 +280,7 @@ def getAnaIdFromArxivNr ( arxivnr : str ) -> Union[None,str]:
     from urllib.request import urlopen
     if arxivnr in [ "9999999999", "1000000000", "999999999", "100000000", "1908.0000" ]:
         return None
-    url = f"https://arxiv.org/abs/{arxivnr}"
+    url = f"http://arxiv.org/abs/{arxivnr}"
     try:
         f = urlopen ( url )
         lines = f.readlines()
