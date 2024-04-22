@@ -20,6 +20,7 @@ def scrapeCdsPage ( url : str ) -> str:
     try:
         f = urlopen ( url, timeout = 3 )
     except URLError as e:
+        print ( f"[gambitHelpers.scrapeCdsPage] {url}: {e}" )
         return None
     lines = f.readlines()
     f.close()
