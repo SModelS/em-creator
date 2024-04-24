@@ -25,6 +25,8 @@ def install_plugins( pyver=3 ):
     if os.path.exists ( "installing.txt" ):
         os.unlink ( "installing.txt" )
     protectPythia8Install()
+    addRPVMSSM()
+
 
 #def createPythia8Backup():
 #    if not os.path.exists ( "backup" ):
@@ -85,6 +87,12 @@ def install( ver, plugins = True, pyver = 3 ):
         sys.exit()
     if plugins:
         install_plugins( pyver )
+
+def addRPVMSSM():
+    """ add the rpv mssm model. """
+    cmd = "cd mg5/models; wget https://feynrules.irmp.ucl.ac.be/raw-attachment/wiki/RPVMSSM/af1_ufo.tgz; tar xzvf af1_ufo.tgz"
+    o = subprocess.getoutput ( cmd )
+    print ( o )
 
 def protectPythia8Install():
     """ protect the pythia8 files, sometimes they get magically deleted. """

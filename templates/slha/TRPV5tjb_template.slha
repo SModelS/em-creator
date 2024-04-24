@@ -4,8 +4,8 @@
 ###################################
 ## INFORMATION FOR MODSEL
 ###################################
-BLOCK MODSEL #   model selection
-      1 1 # 
+#BLOCK MODSEL #   model selection
+#      1 1 # 
 ###################################
 ## INFORMATION FOR DSQMIX
 ###################################

@@ -592,11 +592,14 @@ class MG5Wrapper:
         f.close()
         self.tempf = tempfile.mktemp(prefix="mg5proc",dir=self.tempdir )
         f=open(self.tempf,"w")
+        f.write ( "set auto_convert_model T\n" )
         if self.topo == "TChiQ":
             f.write ( "import model MSSM_SLHA2-full --modelname\n" )
         else:
             if "Hig" in self.topo:
                 f.write ( "import model idm\n" )
+            elif "RPV" in self.topo:
+                f.write ( "import model RPVMSSM_UFO\n" )
             else:
                 f.write ( "import model MSSM_SLHA2\n" )
         if False:
