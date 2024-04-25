@@ -15,6 +15,7 @@ sys.path.insert(0,"../../smodels" )
 ## some global variables (currently only one)
 ## minimumNrOfEvents: set a minimum number of events requirement.
 # constants = { "minimumNrOfEvents": 29000 }
+# constants = { "minimumNrOfEvents": 5001 }
 constants = { "minimumNrOfEvents": 1 }
 
 def nCPUs():
@@ -208,7 +209,7 @@ def parseMasses ( massstring, mingap1=None, maxgap1=None,
         for x in range ( len(lists[0] ) ):
             for y in range ( len(lists[1]) ):
                 ret.append ( (int(lists[0][x]),int(lists[1][y])) )
-    elif any(f"M0+{i}" in lists[1][0] for i in range(5, 101, 1)) and len(lists)==3:
+    elif type (lists[1][0])==str and any(f"M0+{i}" in lists[1][0] for i in range(5, 101, 1)) and len(lists)==3:
         substrings = lists[1][0].split("+")
         for x in lists[0]:
             for k in lists[2]:
@@ -576,6 +577,9 @@ def nRequiredMasses(topo):
     M=set()
     with open( f"templates/slha/{topo}_template.slha", "r" ) as f:
         for line in f.readlines():
+            p1 = line.find("#")
+            if p1 > -1:
+                line = line[:p1]
             if not "M" in line:
                 continue
             p = line.find("M")

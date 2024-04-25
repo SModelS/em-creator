@@ -790,6 +790,6 @@ DECAY   1000021     1.00000000E+00   # gluino decays
 #
 DECAY   1000006     1.00000000E+00   # stop1 decays
 #          BR         NDA      ID1       ID2
-     1.00000000E+00    2     5 2   # BR(~st1 -> b db)
+     1.00000000E+00    2     -5 2   # BR(~st1 -> bbar d)
 
 
