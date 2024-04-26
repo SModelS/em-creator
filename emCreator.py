@@ -507,12 +507,31 @@ def createEmbakedFile( effs, topo, recast : str, tstamps, creator, copy,
                     prevN=len(g.keys())
                 except:
                     pass
-            print ( "[emCreator] previous number of data points: %d" % prevN )
-            print ( "[emCreator] copying embaked to %s" % dest )
-            cmd = "cp %s %s" % ( fname, dest )
+            print ( f"[emCreator] previous number of data points: {prevN}" )
+            print ( f"[emCreator] copying embaked to {dest}" )
+            cmd = f"cp {fname} {dest}"
             subprocess.getoutput ( cmd )
             if create_stats:
-                cmd = "cp statsEM.py %s" % ( Dirname )
+                cmd = f"cp statsEM.py {Dirname}"
+                o = subprocess.getoutput ( cmd )
+                print ( f"[emCreator] {cmd} {o}" )
+        colliderbitname = Dirname.replace("-eff","-colliderbit")
+        if copy and os.path.exists (colliderbitname):
+            dest = f"{colliderbitname}/{topo}.embaked"
+            prevN = 0
+            if os.path.exists (dest ):
+                f=open(dest,"r")
+                try:
+                    g=eval(f.read())
+                    f.close()
+                    prevN=len(g.keys())
+                except:
+                    pass
+            print ( f"[emCreator] copying embaked to {dest}" )
+            cmd = f"cp {fname} {dest}"
+            subprocess.getoutput ( cmd )
+            if create_stats:
+                cmd = f"cp statsEM.py {colliderbitname}"
                 o = subprocess.getoutput ( cmd )
                 print ( f"[emCreator] {cmd} {o}" )
     return ntot
