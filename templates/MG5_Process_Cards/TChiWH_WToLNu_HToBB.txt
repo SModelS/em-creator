@@ -1,4 +1,4 @@
-import model mssm
+# import model mssm
 define p = g u c d s u~ c~ d~ s~
 define j = g u c d s u~ c~ d~ s~
 define p = p b b~
@@ -12,4 +12,4 @@ generate p p >  chi1 n2 @1
 add process p p > chi1 n2 j @2
 add process p p > chi1 n2 j j @3
 
-output SMS-C1N2_mC1-150 -nojpeg
+# output SMS-C1N2_mC1-150 -nojpeg

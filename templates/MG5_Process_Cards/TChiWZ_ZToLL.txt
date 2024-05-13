@@ -26,7 +26,7 @@ set loop_color_flows False
 set gauge unitary
 set complex_mass_scheme False
 set max_npoint_for_channel 0
-import model mssm
+# import model mssm
 define l+ = e+ mu+
 define l- = e- mu-
 define vl = ve vm vt
@@ -44,4 +44,4 @@ define chi1 = x1+ x1-
 generate p p > chi1 n2 @1
 add process p p > chi1 n2 j @2
 add process p p > chi1 n2 j j @3
-output SMS-TChiWZ_ZToLL -nojpeg
+# output SMS-TChiWZ_ZToLL -nojpeg

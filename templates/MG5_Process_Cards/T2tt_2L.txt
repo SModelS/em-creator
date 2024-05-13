@@ -1,4 +1,4 @@
-import model mssm
+# import model mssm
 define p = g u c d s u~ c~ d~ s~
 define j = g u c d s u~ c~ d~ s~
 define p = p b b~
@@ -8,4 +8,4 @@ generate p p > t1 t1~  @1
 add process p p > t1 t1~ j @2
 add process p p > t1 t1~ j j @3
 
-output SMS-StopStop_mStop-650 -nojpeg
+# output SMS-StopStop_mStop-650 -nojpeg
