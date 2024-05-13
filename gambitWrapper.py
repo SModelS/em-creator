@@ -45,9 +45,10 @@ class GambitWrapper ( LoggerBase ):
         self.locker = locker.Locker ( sqrts, topo, False )
         if not self.ana in self.idToGambit:
             self.error ( f"we dont know of {self.ana}, do check gambitdict.cache" )
-            sys.exit()
-        self.gambitAna = self.idToGambit[self.ana]
-        self.lumi = self.sqrtsOfGambit[self.gambitAna]
+            # sys.exit()
+        else:
+            self.gambitAna = self.idToGambit[self.ana]
+            self.lumi = self.sqrtsOfGambit[self.gambitAna]
         self.mkResultsDir()
 
     def onClipCluster ( self ):
@@ -223,7 +224,7 @@ class GambitWrapper ( LoggerBase ):
             f.write ( line )
         f.close()
 
-    def listAnalyses ( self ):
+    def listAnalyses ( self, gambitNameAlso : bool = True ):
         d = gambitHelpers.retrieveAnalysesDictionary( self.pathToGambit )
         keys = list ( d["idToGambit"].keys() )
         if None in keys:
@@ -231,7 +232,9 @@ class GambitWrapper ( LoggerBase ):
         keys.sort()
 
         for ctr,k in enumerate ( keys ):
-            v = d["idToGambit"][k]
+            v = ""
+            if gambitNameAlso:
+                v = d["idToGambit"][k]
             print ( f"#{ctr:2d} {k:20s} {v:40s}" )
 
     def compileAnalysesDictionary ( self ):
@@ -243,4 +246,4 @@ class GambitWrapper ( LoggerBase ):
 
 if __name__ == "__main__":
     wrapper = GambitWrapper()
-    wrapper.listAnalyses()
+    wrapper.listAnalyses( False )
