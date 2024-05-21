@@ -27,6 +27,10 @@ def install_plugins( pyver=3 ):
     protectPythia8Install()
     addRPVMSSM()
 
+def installExtraModels():
+    cmd = "cp -r ../models/* ./models/"
+    o = subprocess.getoutput ( cmd )
+    print ( f"[installModels] {cmd}: {o}" )
 
 #def createPythia8Backup():
 #    if not os.path.exists ( "backup" ):
@@ -155,6 +159,7 @@ if __name__ == "__main__":
                   description='a utility script to help build MG5' )
     argparser.add_argument ( '--clean', help='clean all cruft files', action="store_true" )
     argparser.add_argument ( '--trim', help='trim the install', action="store_true" )
+    argparser.add_argument ( '--models', help='install the extra models', action="store_true" )
     argparser.add_argument ( '--plugins', help='build the plugins', action="store_true" )
     argparser.add_argument ( '--noplugins', help='dont build the plugins, only the binary', 
                              action="store_true" )
@@ -173,6 +178,8 @@ if __name__ == "__main__":
     if args.plugins:
         install_plugins( args.pyver )
         sys.exit()
+    if args.models:
+        installExtraModels()
     plugins = True
     if args.noplugins:
         plugins = False 
