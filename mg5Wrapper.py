@@ -9,6 +9,7 @@
 """
 
 import os, sys, colorama, subprocess, shutil, tempfile, time, socket, random, ast
+from colorama import Fore as ansi
 import multiprocessing, glob, io
 import bakeryHelpers
 from bakeryHelpers import rmLocksOlderThan
@@ -178,12 +179,12 @@ class MG5Wrapper:
         f.close()
 
     def info ( self, *msg ):
-        print ( "%s[mg5Wrapper] %s%s" % ( colorama.Fore.YELLOW, " ".join ( msg ), \
-                   colorama.Fore.RESET ) )
+        print ( "%s[mg5Wrapper] %s%s" % ( ansi.YELLOW, " ".join ( msg ), \
+                   ansi.RESET ) )
 
     def announce ( self, *msg ):
-        print ( "%s[mg5Wrapper] %s%s" % ( colorama.Fore.GREEN, " ".join ( msg ), \
-                   colorama.Fore.RESET ) )
+        print ( "%s[mg5Wrapper] %s%s" % ( ansi.GREEN, " ".join ( msg ), \
+                   ansi.RESET ) )
 
     def debug( self, *msg ):
         pass
@@ -192,8 +193,8 @@ class MG5Wrapper:
         print ( "[mg5Wrapper] %s" % " ".join ( msg ) )
 
     def error ( self, *msg ):
-        print ( "%s[mg5Wrapper] %s%s" % ( colorama.Fore.RED, " ".join ( msg ), \
-                   colorama.Fore.RESET ) )
+        print ( "%s[mg5Wrapper] %s%s" % ( ansi.RED, " ".join ( msg ), \
+                   ansi.RESET ) )
 
     def writePythiaCard ( self, process="", masses="" ):
         """ this method writes the pythia card for within mg5.
@@ -765,6 +766,9 @@ def main():
     argparser.add_argument ( '-m', '--masses', help='mass ranges, comma separated list of tuples. One tuple gives the range for one mass parameter, as (m_lowest, m_highest, delta_m). m_highest and delta_m may be omitted. Keywords "half" and "same" (add quotes) are accepted for intermediate masses. [%s]' % mdefault,
                              type=str, default=mdefault )
     args = argparser.parse_args()
+    if "bias" in args.topo and args.njets>0:
+        print ( f"{ansi.RED}[mg5Wrapper] topo {args.topo} seems a biased one but njets not equal zero?!  {ansi.RESET}" )
+        sys.exit()
     if args.topo in [ "T1", "T2", "T1bbbb", "T2bb", "T2ttoff", "T1ttttoff" ] and args.mingap1 == None and not args.list_analyses and not args.clean and not args.clean_all:
         if "(" in args.masses:
             print ( f"[mg5Wrapper] for topo {args.topo} we set mingap1 to 1." )
@@ -876,7 +880,7 @@ def main():
         for c in chunk:
             mg5.run ( c, args.analyses, pid )
         print ( "%s[runChunk] finished chunk #%d%s" % \
-                ( colorama.Fore.GREEN, pid, colorama.Fore.RESET ) )
+                ( ansi.GREEN, pid, ansi.RESET ) )
 
     jobs=[]
     for i in range(nprocesses):
