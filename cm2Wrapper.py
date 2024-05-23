@@ -209,7 +209,7 @@ class CM2Wrapper:
         self.instanceName = f"{self.analyses}_{self.topo}_{mass_stripped}"
         if "atlas_2010_14293" in self.analyses:
             self.checkAtlasSus201822()
-        print ( f"[cm2Wrapper] initialse checkmate {self.ver} for {self.analyses}" )
+        print ( f"[cm2Wrapper] initialise checkmate {self.ver} for {self.analyses}" )
         self.checkInstallation()
         if not os.path.exists ( self.outputfile() ):
             self.createConfigFile ( masses, hepmcfile )
