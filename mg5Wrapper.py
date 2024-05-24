@@ -538,13 +538,19 @@ class MG5Wrapper:
                 line = line + "\n"
                 f.write ( line )
 
-    def mkdir ( self, dirname ):
+    def mkdir ( self, dirname ) -> bool:
+        """ make directory <dirname>
+
+        :returns: true, if all went well
+        """
         if not os.path.exists ( dirname ):
             try:
                 os.mkdir ( dirname )
+                return True
             except FileExistsError as e:
                 # can happen if many processses start at once
-                pass
+                return False
+        return False
 
     def fixPythia8 ( self ):
         """ fix pythia8, first remove it """
@@ -553,7 +559,7 @@ class MG5Wrapper:
         o = subprocess.getoutput ( cmd )
         backup = os.path.join ( self.basedir, "backup", "pythia8" )
         if not os.path.exists ( backup ):
-            line = "pythia8 install broken and no backup available"
+            line = f"pythia8 install broken and no backup available at {backup}"
             self.error ( line )
             raise Exception ( line )
         cmd = f"cp -r {backup} {path}"
@@ -621,7 +627,10 @@ class MG5Wrapper:
         self.logfile = tempfile.mktemp ()
         if os.path.exists ( Dir ):
             subprocess.getoutput ( f"rm -rf {Dir}" )
-        os.mkdir ( Dir )
+        r = self.mkdir ( Dir )
+        if r == False:
+            self.error ( f"{Dir} already exists! Skipping!" )
+            return False
 
         if self.keep:
             self.mkdir ( "keep/" )
