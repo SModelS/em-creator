@@ -1,1 +1,2 @@
+import model RPVMSSM_UFO
 generate p p > go go 

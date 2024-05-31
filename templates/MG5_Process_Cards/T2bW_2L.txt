@@ -1,4 +1,5 @@
 # import model mssm
+import model MSSM_SLHA2
 define p = g u c d s u~ c~ d~ s~
 define j = g u c d s u~ c~ d~ s~
 define p = p b b~

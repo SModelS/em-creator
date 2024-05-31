@@ -601,15 +601,18 @@ class MG5Wrapper:
         self.tempf = tempfile.mktemp(prefix="mg5proc",dir=self.tempdir )
         f=open(self.tempf,"w")
         f.write ( "set auto_convert_model T\n" )
-        if self.topo == "TChiQ":
-            f.write ( "import model MSSM_SLHA2-full --modelname\n" )
-        else:
-            if "Hig" in self.topo:
-                f.write ( "import model idm\n" )
-            elif "RPV" in self.topo:
-                f.write ( "import model RPVMSSM_UFO\n" )
-            else:
-                f.write ( "import model MSSM_SLHA2\n" )
+        #if self.topo == "TChiQ":
+        #    f.write ( "import model MSSM_SLHA2-full --modelname\n" )
+        #else:
+        #if "Hig" in self.topo:
+        #    f.write ( "import model idm\n" )
+        #if "RPV" in self.topo:
+        #    f.write ( "import model RPVMSSM_UFO\n" )
+        #else:
+        ## FIXME lets define all modesl in
+        ## templates/MG5_Process_Cards/T*txt
+        ## then take out the line below
+        f.write ( "import model MSSM_SLHA2\n" )
         if False:
             # for SLHA1
             self.info ( f"do we need to port {self.topo} to slha2?" )
