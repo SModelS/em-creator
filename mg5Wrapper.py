@@ -612,7 +612,7 @@ class MG5Wrapper:
         ## FIXME lets define all modesl in
         ## templates/MG5_Process_Cards/T*txt
         ## then take out the line below
-        f.write ( "import model MSSM_SLHA2\n" )
+        # f.write ( "import model MSSM_SLHA2\n" )
         if False:
             # for SLHA1
             self.info ( f"do we need to port {self.topo} to slha2?" )

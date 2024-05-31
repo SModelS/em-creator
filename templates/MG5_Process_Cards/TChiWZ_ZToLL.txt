@@ -20,6 +20,7 @@
 #*     run as ./bin/mg5_aMC  filename                       *
 #*                                                          *
 #************************************************************
+import model MSSM_SLHA2
 set group_subprocesses Auto
 set ignore_six_quark_processes False
 set loop_color_flows False
