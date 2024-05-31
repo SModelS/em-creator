@@ -216,7 +216,7 @@ class CutLangWrapper:
                     continue
                 fname = os.path.basename ( x )
                 # print ( f"@@A lets see, we ask about fname={fname} to dirname={dirname} cwd {os.getcwd()}" )
-                if not os.path.exists ( f"{dirname}/ADLLHCanalyses/{fname}/" ):
+                if not os.path.exists ( f"{dirname}/ADLLHCanalyses/{fname}/" ) and os.path.exists ( f"{dirname}/ADLAnalysisDrafts/{fname}/" ):
                     shutil.copytree ( f"{dirname}/ADLAnalysisDrafts/{fname}/", f"{dirname}/ADLLHCanalyses/{fname}/" )
 
         self._info("ADLLHC Analyses initialisation finished.")
