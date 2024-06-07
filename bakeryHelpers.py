@@ -463,8 +463,8 @@ def createSlurmLink():
     """ simple convenience method to create a symlink to slurm.py """
     for f in [ "slurm.py", "cancel_jobs.py" ]:
         if not os.path.exists ( f ):
-            if os.path.exists ( f"/users/wolfgan.waltenberger/{f}" ):
-                cmd = f"ln -s /users/wolfgan.waltenberger/{f} ."
+            if os.path.exists ( f"{os.environ['HOME']}/{f}" ):
+                cmd = f"ln -s {os.environ['HOME']}/{f} ."
                 subprocess.getoutput ( cmd )
 
 def getEmbakedName(analysisId : str, topo : str, recaster : str ) -> str:
@@ -608,8 +608,8 @@ def clean ():
         files += glob.glob ( pattern )
     files += glob.glob ( f"{b}/.lock*" )
     files += glob.glob ( f"{b}/../clip/_B*sh" )
-    files += glob.glob ( "/users/wolfgan.waltenberger/B*sh" )
-    files += glob.glob ( "/scratch-cbe/users/wolfgan.waltenberger/outputs/slurm*out" )
+    files += glob.glob ( f"{os.environ['HOME']}/B*sh" )
+    files += glob.glob ( f"/scratch-cbe/users/{os.environ['USER']}/outputs/slurm*out" )
     cleaned = []
     for f in files:
         dt = getAge ( f )
@@ -644,8 +644,8 @@ def cleanAll():
         files += glob.glob ( "%s/ma5/%s" % ( b, i ) )
     files += glob.glob ( "%s/.lock*" % b )
     files += glob.glob ( "%s/../clip/_B*sh" % b )
-    files += glob.glob ( "/users/wolfgan.waltenberger/B*sh" )
-    files += glob.glob ( "/scratch-cbe/users/wolfgan.waltenberger/outputs/slurm*out" )
+    files += glob.glob ( f"{os.environ['HOME']}/B*sh" )
+    files += glob.glob ( f"/scratch-cbe/users/{os.environ['USER']}/outputs/slurm*out" )
     cleaned = []
     for f in files:
         dt = getAge ( f )
