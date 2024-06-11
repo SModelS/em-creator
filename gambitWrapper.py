@@ -235,7 +235,7 @@ class GambitWrapper ( LoggerBase ):
             v = ""
             if gambitNameAlso:
                 v = d["idToGambit"][k]
-            print ( f"#{ctr:2d} {k:20s} {v:40s}" )
+            print ( f"#{ctr+1:2d} {k:20s} {v:40s}" )
 
     def compileAnalysesDictionary ( self ):
         """ compile the dictionary gambit_name <-> analsis ids """
