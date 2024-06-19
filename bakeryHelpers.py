@@ -190,9 +190,13 @@ def parseMasses ( massstring, mingap1=None, maxgap1=None,
         sys.exit(-1)
     if lists[1][0]=="half":
         for x  in lists[0]:
-            for z in lists[2]:
-                y=int(.5*x+.5*z)
-                ret.append ( (int(x),y,int(z)) )
+            if len(lists)==2:
+                y=int(.5*x)
+                ret.append ( (int(x),y) )
+            else:
+                for z in lists[2]:
+                    y=int(.5*x+.5*z)
+                    ret.append ( (int(x),y,int(z)) )
     elif lists[1][0]=="same" and len(lists)<4:
         for x  in lists[0]:
             for z in lists[2]:
