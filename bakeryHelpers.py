@@ -159,6 +159,10 @@ def parseMasses ( massstring, mingap1=None, maxgap1=None,
                 tmp.append ( mtuple )
                 lists.append ( tuple(tmp) )
                 continue
+            elif "half" in mtuple and ctr == 1:
+                tmp.append ( mtuple )
+                lists.append ( tuple(tmp) )
+                continue
             elif mtuple == "same" and ctr == 1:
                 tmp.append ( mtuple )
                 lists.append ( tuple(tmp) )
@@ -192,6 +196,16 @@ def parseMasses ( massstring, mingap1=None, maxgap1=None,
         for x  in lists[0]:
             if len(lists)==2:
                 y=int(.5*x)
+                ret.append ( (int(x),y) )
+            else:
+                for z in lists[2]:
+                    y=int(.5*x+.5*z)
+                    ret.append ( (int(x),y,int(z)) )
+    elif type(lists[1][0]) in [ str ] and "half" in lists[1][0]:
+        for x  in lists[0]:
+            expr = lists[1][0].replace("half",f"{.5*x}" )
+            if len(lists)==2:
+                y=int(eval(expr))
                 ret.append ( (int(x),y) )
             else:
                 for z in lists[2]:
