@@ -76,7 +76,8 @@ def createStats():
             sdirs[ms]=f
         except Exception as e:
             pass
-    files = glob.glob("mg5results/T*hepmc.gz")
+    # files = glob.glob("mg5results/T*hepmc.gz")
+    files = []
     for f in files:
         try:
             ms = os.stat ( f ).st_mtime
