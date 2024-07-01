@@ -108,8 +108,8 @@ def baseDir():
 
 def tempDir():
     """ our temp dir """
-    return "./temp/"
-    ret = baseDir()+"/temp/"
+    ret = "./temp/"
+    #ret = baseDir()+"/temp/"
     while ret.find("//")>0:
         ret = ret.replace("//","/")
     if not os.path.exists ( ret ):
