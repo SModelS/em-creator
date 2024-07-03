@@ -113,7 +113,10 @@ def tempDir():
     while ret.find("//")>0:
         ret = ret.replace("//","/")
     if not os.path.exists ( ret ):
-        os.mkdir ( ret )
+        try:
+            os.mkdir ( ret )
+        except FileExistsError as e:
+            pass
     return ret
 
 def dirName ( process, masses, basedir=None ):
