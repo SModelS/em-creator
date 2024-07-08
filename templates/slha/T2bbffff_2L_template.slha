@@ -57,6 +57,11 @@ BLOCK EXTPAR  # Input parameters - non-minimal models
 #
 BLOCK MASS  # Mass Spectrum
 # PDG code           mass       particle
+         5     4.889917e+00 # mb
+         6     1.750000e+02 # mt
+        15     1.777000e+00 # mta
+        23     9.118760e+01 # mz
+        24     7.982901e+01 # mw
         25     1.00000000E+03
         35     1.00000000E+03
         36     1.00000000E+03
