@@ -208,6 +208,8 @@ class MG5Wrapper:
             templatefile = f"{self.templateDir}/template_run_card_TRV1_bias.dat"
         if "TRS1bias" in self.topo:
             templatefile = f"{self.templateDir}/template_run_card_TRS1_bias.dat"
+        if "bias" in self.topo and self.topo != "TRV1bias" and self.topo != "TRS1bias":
+            templatefile = f"{self.templateDir}/template_run_card_bias.dat"
         if self.topo == "TRV1" or self.topo == "TRS1":
             templatefile = f"{self.templateDir}/template_run_card_TRV1_TRS1_no-bias.dat"
         if not os.path.exists ( templatefile ):
@@ -398,7 +400,9 @@ class MG5Wrapper:
                            self.sqrts, keephepmc = self.keephepmc )
         self.debug ( "now call ma5Wrapper" )
         hepmcfile = self.locker.hepmcFileName ( masses )
-        ret = ma5.run ( masses, hepmcfile, pid )
+        ma5_runs = ma5.run ( masses, hepmcfile, pid )
+        ret = ma5_runs["exit_status"]
+
         msg = "finished MG5+MA5"
         if ret > 0:
             msg = "nothing needed to be done"
