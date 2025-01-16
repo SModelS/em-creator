@@ -319,6 +319,7 @@ class MG5Wrapper:
         """ Run MG5 for topo, with njets additional ISR jets, giving
         also the masses as a list.
         """
+        os.system("echo $LD_LIBRARY_PATH")
         self.sleep()
         self.checkInstallation()
         import emCreator

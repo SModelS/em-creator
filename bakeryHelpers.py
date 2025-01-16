@@ -95,7 +95,6 @@ def baseDir():
             ret = f.read()
         ret = ret.strip()
         return ret
-    return "./"
     # ret = "/scratch-cbe/users/wolfgan.waltenberger/git/em-creator/"
     subdir = "git/em-creator"
     ret = "~/%s/" % subdir

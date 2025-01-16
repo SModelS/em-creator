@@ -216,7 +216,151 @@ class MA5Wrapper:
                 line = line.strip()
                 if line.startswith("#"):
                     continue
-                print ( line )
+                print ( line )    
+
+    def run(self, masses, hepmcfile, pid=None):
+        """ Run MA5 over an hepmcfile, specifying the process
+        :param pid: process id, for debugging
+        :param hepmcfile: the hepcmfile name
+        :returns: -1 if problem occured, 0 if all went smoothly,
+                   1 if nothing needed to be done.
+        """
+        print("Entered run function") 
+        print(f"masses: {masses}, hepmcfile: {hepmcfile}, pid: {pid}")
+
+        self.checkInstallation()
+        spid = ""
+        if pid is not None:
+            spid = "[%d]" % pid
+    
+        self.commandfile = tempfile.mktemp(prefix="ma5cmd", dir=self.ma5install)
+        self.teefile = tempfile.mktemp(prefix="ma5", suffix=".run", dir="/tmp")
+        process = "%s_%djet" % (self.topo, self.njets)
+        hasAllInfo = self.checkForSummaryFile(masses)
+    
+        if hasAllInfo:
+            print("All necessary information is already available")
+            return {"exit_status": 1}
+
+        if not os.path.exists(hepmcfile):
+            self.error ( "%scannot find hepmc file %s" % ( spid, hepmcfile ) )
+            p = hepmcfile.find("Events")
+            if not self.keep:
+                cmd = "rm -rf %s" % hepmcfile[:p]
+                o = subprocess.getoutput(cmd)
+                self.error ( "%sdeleting the folder %s: %s" % ( spid, cmd, o ) )
+            return {"exit_status": -1}
+        # now write recasting card
+        self.msg ( "%s Found hepmcfile at %s" % ( spid, hepmcfile ) )
+        self.writeRecastingCard()
+        self.writeCommandFile(hepmcfile, process, masses)
+        Dir = bakeryHelpers.dirName(process, masses)
+        tempdir = "%s/ma5_%s" % ( self.basedir, Dir )
+
+        a = subprocess.getoutput ( "mkdir %s" % tempdir )
+        a = subprocess.getoutput ( "cp -r %s/bin %s/madanalysis %s/tools %s" % \
+                                   ( self.ma5install, self.ma5install, self.ma5install, tempdir ) )
+        a = subprocess.getoutput ( "mv %s %s/recast" % ( self.recastfile, tempdir ) )
+        # a = subprocess.getoutput ( "cp -r %s %s" % ( self.recastfile, tempdir ) )
+        a = subprocess.getoutput ( "mv %s %s/ma5cmd" % \
+                                   ( self.commandfile, tempdir ) )
+       
+        # then run MadAnalysis
+        os.chdir ( tempdir )
+	
+        cmd = "python3 %s -R -s ./ma5cmd 2>&1 | tee %s" % (self.executable, \
+                self.teefile )
+        self.exe ( cmd, maxLength=None )
+        # self.unlink ( self.recastfile )
+        # self.unlink ( self.commandfile )
+        self.unlink ( self.teefile )
+        smass = "_".join ( map ( str, masses ) )
+        origsaffile = "%s/ANA_%s_%djet.%s/Output/SAF/defaultset/defaultset.saf" % \
+                       ( tempdir, self.topo, self.njets, smass )
+        origsaffile = origsaffile.replace("//","/")
+        destsaffile = bakeryHelpers.safFile (self.ma5results, self.topo, masses, self.sqrts )
+        dirname = bakeryHelpers.dirName ( process, masses )
+        origdatfile = "%s/ANA_%s/Output/SAF/CLs_output_summary.dat" % \
+                      ( tempdir, dirname )
+        origdatfile = origdatfile.replace("//","/")
+        errFree=True
+
+        if not os.path.exists ( origdatfile ):
+            errFree=False
+            self.error ( "dat file %s does not exist!" % origdatfile )
+        if not os.path.exists ( origsaffile ):
+            errFree=False
+            self.error ( "saf file %s does not exist!" % origsaffile )
+        
+        # New SAF file processing
+        saf_dir = f"{tempdir}/ANA_{self.topo}_{self.njets}jet.{smass}/Output/SAF/defaultset"
+        
+        signal_regions = {}
+        if os.path.exists(origdatfile):
+            with open(origdatfile, "r") as dat_file:
+                for line in dat_file:
+                    if line.startswith("#") or not line.strip():
+                        continue
+                    columns = line.split()
+                    analysis_name = columns[1]
+                    signal_region = columns[2]
+                    if analysis_name not in signal_regions:
+                        signal_regions[analysis_name] = []
+                    if "SR" in signal_region:
+                        signal_regions[analysis_name].append(signal_region)
+        print("Signal regions detected: ", signal_regions)
+
+        saf_files = []
+        for analysis_name, regions in signal_regions.items():
+            analysis_dir = f"{saf_dir}/{analysis_name}/Cutflows"
+            if not os.path.exists(analysis_dir):
+                print(f"Directory {analysis_dir} does not exist!")
+                continue
+            for region in regions:
+                saf_file = f"{analysis_dir}/{region}.saf"
+                if os.path.exists(saf_file):
+                    saf_files.append(saf_file)
+                else:
+                    print(f"SAF file {saf_file} does not exist!")
+
+        print(f"SAF files collected: {saf_files}")
+       
+        destdatfile = bakeryHelpers.datFile (  self.ma5results, self.topo, masses, self.sqrts )
+
+        if errFree: ## only move if we have both
+            shutil.move ( origdatfile, destdatfile )
+            shutil.move ( origsaffile, destsaffile )
+            if self.keephepmc:
+                self.info ( f"not removing {hepmcfile}" )
+            else:
+                cmd = f"rm -rf {hepmcfile}"
+                self.exe ( cmd )
+
+        # Call the extract function
+        effs, weights, timestamp = self.extract(masses, saf_files) 
+        #print(f"Extracted effs: {effs}, weights: {weights}, timestamp: {timestamp}") 
+
+        # Check if the weights  directory exists 
+        if not os.path.exists(self.weightsdir):
+            print(f"Creating the weights dir: {self.weightsdir}")
+            subprocess.getoutput(f"mkdir {self.weightsdir}")
+        else:
+            print(f"Weights dir already exists: {self.weightsdir}")
+
+        SModelS_analysis_name = bakeryHelpers.ma5AnaNameToSModelSName ( analysis_name )
+        output_file = f"{self.weightsdir}/{SModelS_analysis_name}.{self.topo}.{self.njets}jet.MA5.json"
+        # Write the signal region information for this mass point
+        self.write_weights(masses, weights, output_file)
+
+        if errFree and not self.keep and os.path.exists ( tempdir ):
+            self.exe ( f"rm -rf {tempdir}" )
+        if False and not errFree: # skip this for now
+            ## for debugging
+            dirname = f"{self.basedir}/debug/"
+            bakeryHelpers.mkdir ( dirname )
+            self.exe ( f"mv {tempdir} {dirname}" )
+        os.chdir ( self.basedir )
+        return {"exit_status": 0}
 
     def write_weights(self, mass, signal_region_data, output_file):
         """
@@ -379,149 +523,6 @@ class MA5Wrapper:
         print(f"Timestamp from summary file: {timestamp}")
 
         return effs, saf_weights, timestamp
-
-    def run(self, masses, hepmcfile, pid=None):
-        """ Run MA5 over an hepmcfile, specifying the process
-        :param pid: process id, for debugging
-        :param hepmcfile: the hepcmfile name
-        :returns: -1 if problem occured, 0 if all went smoothly,
-                   1 if nothing needed to be done.
-        """
-        print("Entered run function") 
-        print(f"masses: {masses}, hepmcfile: {hepmcfile}, pid: {pid}")
-
-        self.checkInstallation()
-        spid = ""
-        if pid is not None:
-            spid = "[%d]" % pid
-    
-        self.commandfile = tempfile.mktemp(prefix="ma5cmd", dir=self.ma5install)
-        self.teefile = tempfile.mktemp(prefix="ma5", suffix=".run", dir="/tmp")
-        process = "%s_%djet" % (self.topo, self.njets)
-        hasAllInfo = self.checkForSummaryFile(masses)
-    
-        if hasAllInfo:
-            print("All necessary information is already available")
-            return {"exit_status": 1}
-
-        if not os.path.exists(hepmcfile):
-            self.error ( "%scannot find hepmc file %s" % ( spid, hepmcfile ) )
-            p = hepmcfile.find("Events")
-            if not self.keep:
-                cmd = "rm -rf %s" % hepmcfile[:p]
-                o = subprocess.getoutput(cmd)
-                self.error ( "%sdeleting the folder %s: %s" % ( spid, cmd, o ) )
-            return {"exit_status": -1}
-        # now write recasting card
-        self.msg ( "%s Found hepmcfile at %s" % ( spid, hepmcfile ) )
-        self.writeRecastingCard()
-        self.writeCommandFile(hepmcfile, process, masses)
-        Dir = bakeryHelpers.dirName(process, masses)
-        tempdir = "%s/ma5_%s" % ( self.basedir, Dir )
-
-        a = subprocess.getoutput ( "mkdir %s" % tempdir )
-        a = subprocess.getoutput ( "cp -r %s/bin %s/madanalysis %s/tools %s" % \
-                                   ( self.ma5install, self.ma5install, self.ma5install, tempdir ) )
-        a = subprocess.getoutput ( "mv %s %s/recast" % ( self.recastfile, tempdir ) )
-        # a = subprocess.getoutput ( "cp -r %s %s" % ( self.recastfile, tempdir ) )
-        a = subprocess.getoutput ( "mv %s %s/ma5cmd" % \
-                                   ( self.commandfile, tempdir ) )
-
-        # then run MadAnalysis
-        os.chdir ( tempdir )
-        cmd = "python3 %s -R -s ./ma5cmd 2>&1 | tee %s" % (self.executable, \
-                self.teefile )
-        self.exe ( cmd, maxLength=None )
-        # self.unlink ( self.recastfile )
-        # self.unlink ( self.commandfile )
-        self.unlink ( self.teefile )
-        smass = "_".join ( map ( str, masses ) )
-        origsaffile = "%s/ANA_%s_%djet.%s/Output/SAF/defaultset/defaultset.saf" % \
-                       ( tempdir, self.topo, self.njets, smass )
-        origsaffile = origsaffile.replace("//","/")
-        destsaffile = bakeryHelpers.safFile (self.ma5results, self.topo, masses, self.sqrts )
-        dirname = bakeryHelpers.dirName ( process, masses )
-        origdatfile = "%s/ANA_%s/Output/SAF/CLs_output_summary.dat" % \
-                      ( tempdir, dirname )
-        origdatfile = origdatfile.replace("//","/")
-        errFree=True
-
-        if not os.path.exists ( origdatfile ):
-            errFree=False
-            self.error ( "dat file %s does not exist!" % origdatfile )
-        if not os.path.exists ( origsaffile ):
-            errFree=False
-            self.error ( "saf file %s does not exist!" % origsaffile )
-        
-        # New SAF file processing
-        saf_dir = f"{tempdir}/ANA_{self.topo}_{self.njets}jet.{smass}/Output/SAF/defaultset"
-        
-        signal_regions = {}
-        if os.path.exists(origdatfile):
-            with open(origdatfile, "r") as dat_file:
-                for line in dat_file:
-                    if line.startswith("#") or not line.strip():
-                        continue
-                    columns = line.split()
-                    analysis_name = columns[1]
-                    signal_region = columns[2]
-                    if analysis_name not in signal_regions:
-                        signal_regions[analysis_name] = []
-                    if "SR" in signal_region:
-                        signal_regions[analysis_name].append(signal_region)
-        print("Signal regions detected: ", signal_regions)
-
-        saf_files = []
-        for analysis_name, regions in signal_regions.items():
-            analysis_dir = f"{saf_dir}/{analysis_name}/Cutflows"
-            if not os.path.exists(analysis_dir):
-                print(f"Directory {analysis_dir} does not exist!")
-                continue
-            for region in regions:
-                saf_file = f"{analysis_dir}/{region}.saf"
-                if os.path.exists(saf_file):
-                    saf_files.append(saf_file)
-                else:
-                    print(f"SAF file {saf_file} does not exist!")
-
-        print(f"SAF files collected: {saf_files}")
-       
-        destdatfile = bakeryHelpers.datFile (  self.ma5results, self.topo, masses, self.sqrts )
-
-        if errFree: ## only move if we have both
-            shutil.move ( origdatfile, destdatfile )
-            shutil.move ( origsaffile, destsaffile )
-            if self.keephepmc:
-                self.info ( f"not removing {hepmcfile}" )
-            else:
-                cmd = f"rm -rf {hepmcfile}"
-                self.exe ( cmd )
-
-        # Call the extract function
-        effs, weights, timestamp = self.extract(masses, saf_files) 
-        #print(f"Extracted effs: {effs}, weights: {weights}, timestamp: {timestamp}") 
-
-        # Check if the weights  directory exists 
-        if not os.path.exists(self.weightsdir):
-            print(f"Creating the weights dir: {self.weightsdir}")
-            subprocess.getoutput(f"mkdir {self.weightsdir}")
-        else:
-            print(f"Weights dir already exists: {self.weightsdir}")
-
-        SModelS_analysis_name = bakeryHelpers.ma5AnaNameToSModelSName ( analysis_name )
-        output_file = f"{self.weightsdir}/{SModelS_analysis_name}.{self.topo}.{self.njets}jet.MA5.json"
-        # Write the signal region information for this mass point
-        self.write_weights(masses, weights, output_file)
-
-        if errFree and not self.keep and os.path.exists ( tempdir ):
-            self.exe ( f"rm -rf {tempdir}" )
-        if False and not errFree: # skip this for now
-            ## for debugging
-            dirname = f"{self.basedir}/debug/"
-            bakeryHelpers.mkdir ( dirname )
-            self.exe ( f"mv {tempdir} {dirname}" )
-        os.chdir ( self.basedir )
-        return {"exit_status": 0}
 
     def exe ( self, cmd, maxLength=100 ):
         """ execute cmd in shell
