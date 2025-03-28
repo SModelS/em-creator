@@ -306,8 +306,7 @@ class MA5Wrapper:
                     signal_region = columns[2]
                     if analysis_name not in signal_regions:
                         signal_regions[analysis_name] = []
-                    if "SR" in signal_region:
-                        signal_regions[analysis_name].append(signal_region)
+                    signal_regions[analysis_name].append(signal_region)
         print("Signal regions detected: ", signal_regions)
 
         saf_files = []
