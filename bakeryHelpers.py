@@ -291,6 +291,7 @@ def ma5AnaNameToSModelSName ( name ):
     name = name.replace("susy","SUSY")
     name = name.replace("sus","SUS")
     name = name.replace("exo","EXO")
+    name = name.replace("exot","EXOT")
     name = name.replace("_","-")
     return name
 
