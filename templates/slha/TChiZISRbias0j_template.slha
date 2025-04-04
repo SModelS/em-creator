@@ -569,7 +569,7 @@ DECAY   1000021     1.00000000E+00   # gluino decays
 DECAY  1000022   0.000000e+00
 #
 #      PDG        Width
-DECAY   1000023     1.00000000E+00   # neutralino2 decays
+DECAY   1000023     0.00000000E+00   # neutralino2 decays
  #           BR         NDA      ID1       ID2       ID3
       1.16000000E-01    3     1000022        -2         2   # BR(~chi_20 -> ~chi_10 ub      u)
       1.56000000E-01    3     1000022        -1         1   # BR(~chi_20 -> ~chi_10 db      d)
