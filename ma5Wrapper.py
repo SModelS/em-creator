@@ -107,6 +107,7 @@ class MA5Wrapper:
         f = open ( filename, "at" )
         recastcard = { "atlas_susy_2016_07": "delphes_card_atlas_exot_2015_03" }
         recastcard["atlas_susy_2013_02"] = "delphesma5tune_card_atlas_dileptonsusy"
+        recastcard["atlas_exot_2018_06"] = "sfs_card_atlas_exot_2018_05"
         recastcard["atlas_susy_2019_08"] = "delphes_card_atlas_susy_2019_08"
         recastcard["cms_sus_16_033"] = "delphes_card_cms_sus_16_033"
         recastcard["cms_sus_19_006"] = "delphes_card_cms_sus_19_006"
@@ -116,6 +117,7 @@ class MA5Wrapper:
         anas = set(self.analyses.split(","))
         versions = { "atlas_susy_2016_07": "1.2",
                      "atlas_susy_2013_02": "1.1",
+                     "atlas_exot_2018_06": "SFS",
                      "cms_sus_19_006": "1.2",
                      "atlas_susy_2019_08": "1.2",
                      "cms_sus_16_048": "1.2",
@@ -131,7 +133,10 @@ class MA5Wrapper:
                 recastcard[i]=f"delphes_card_{i}"
                 self.error ( "for now we will guess" )
                 # sys.exit()
-            f.write ( "%s         v%s        on    %s.tcl\n" % ( i, versions[i], recastcard[i] ) )
+            if "sfs" in recastcard[i].lower():
+                f.write("%s         v%s        on    %s.ma5\n" % (i, versions[i], recastcard[i]))
+            else:
+                f.write ( "%s         v%s        on    %s.tcl\n" % ( i, versions[i], recastcard[i] ) )
         f.close()
         self.debug ( "wrote recasting card %s in %s" % ( filename, os.getcwd() ) )
 
