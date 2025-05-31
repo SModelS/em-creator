@@ -8,10 +8,13 @@
 """
 
 import numpy, sys, os, time, subprocess, glob
+import logging
 from os import PathLike
 from typing import List, Union
 sys.path.insert(0,"../../smodels" )
+import functools
 
+LOG = logging.getLogger(__name__)
 ## some global variables (currently only one)
 ## minimumNrOfEvents: set a minimum number of events requirement.
 # constants = { "minimumNrOfEvents": 29000 }
@@ -87,23 +90,52 @@ def isAssociateProduction ( topo ):
         return True
     return False
 
-def baseDir():
-    """ our basedir """
+def contains_bake_py(path: str) -> bool:
+    bake_py_file = os.path.join(path, "bake.py")
+    if os.path.isfile(bake_py_file):
+        return True
+    return False
+
+@functools.cache
+def baseDir() -> str:
+    """Returns path to em-creator repository."""
+    result = None
+    # First try baking.conf
     conffile = "baking.conf"
-    if os.path.exists ( conffile ):
-        with open ( conffile, "rt" ) as f:
-            ret = f.read()
-        ret = ret.strip()
-        return ret
-    # ret = "/scratch-cbe/users/wolfgan.waltenberger/git/em-creator/"
-    subdir = "git/em-creator"
-    ret = "~/%s/" % subdir
-    ret = os.path.expanduser ( ret )
-    if ret.count ( subdir ) == 2:
-        ret = ret.replace(subdir,"",1)
-    while ret.find("//")>0:
-        ret = ret.replace("//","/")
-    return ret
+    if os.path.exists(conffile):
+        LOG.debug(f"Using {conffile} to get base directory.")
+        with open(conffile, "rt") as f:
+            ret = f.read().strip()
+        if os.path.isdir(ret):
+            result = ret
+        else:
+            LOG.error(f"Got invalid base directory from {conffile}: {ret}")
+
+    # FIXME: Maybe change priority with baking.conf?
+    # then look for env var
+    if not result:
+        result = os.environ.get("EM_CREATOR_BASE_DIR")
+
+    # then try current working directory
+    cwd = os.getcwd()
+    if not result and contains_bake_py(cwd):
+        result = cwd
+
+    # then try some default path
+    if not result:
+        subdir = "git/em-creator"
+        ret = os.path.join("~", subdir)
+        ret = os.path.expanduser(ret)
+        if ret.count(subdir) == 2:
+            ret = ret.replace(subdir, "", 1)
+        # if we fail, panic...
+        if not contains_bake_py(ret):
+            LOG.error("Could not get a valid base dir - please specify it with EM_CREATOR_BASE_DIR environment variable.")
+            sys.exit(-1)
+
+    LOG.info("Using base dir: {result}")
+    return result
+
 
 def tempDir():
     """ our temp dir """
