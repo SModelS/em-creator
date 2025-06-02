@@ -357,6 +357,10 @@ class MG5Wrapper:
             self.mgParams["XQCUT"]="M[0]/15"
         if "TRS1" in self.topo and float(masses[0]) < 525. :
             self.mgParams["XQCUT"]="35"
+        if "ISR" in self.topo and float(masses[0]) <= 25. :
+            self.mgParams["XQCUT"]="15"
+        if "ISR" in self.topo and float(masses[0])  > 25. and float(masses[0]) <= 60.:
+            self.mgParams["XQCUT"]="M[0]/2"
        
         self.announce ( "starting MG5 on %s[%s] at %s in job #%s" % (masses, self.topo, time.asctime(), pid ) )
         slhaTemplate = f"slha/{self.topo}_template.slha"
