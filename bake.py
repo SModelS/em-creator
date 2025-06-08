@@ -12,4 +12,4 @@ from mg5Wrapper import MG5Wrapper
 
 if __name__ == "__main__":
     import mg5Wrapper
-    mg5Wrapper.main()
+    mg5Wrapper.main_via_ini()
