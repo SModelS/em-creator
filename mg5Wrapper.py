@@ -926,5 +926,187 @@ def main():
                 cleanup = False, checkmate=args.checkmate, colliderbit = args.colliderbit )
         emCreator.run ( args )
 
-if __name__ == "__main__":
+def main_via_ini():
+    import sys
+    import argparse
+    from confloader import ConfDict
+    from types import SimpleNamespace
+
+    class ansi:
+        RED = '\033[91m'
+        GREEN = '\033[92m'
+        YELLOW = '\033[93m'
+        RESET = '\033[0m'
+
+    parser = argparse.ArgumentParser(description="Read emcreator config")
+    parser.add_argument("--config", type=str, help="")
+    config_path = parser.parse_args().config
+
+    config_full_dict = ConfDict.from_file(config_path)
+
+    config_flat_dict = {}
+    for key in config_full_dict:
+        if key.startswith("emcreator."):
+            short_key = key.split(".", 1)[1]
+            config_flat_dict[short_key] = config_full_dict[key]
+
+    defaults = {
+        "nevents"           : 10000,
+        "njets"             : 1,
+        "nprocesses"        : 1,
+        "mingap1"           : None,
+        "mingap2"           : None,
+        "maxgap1"           : None,
+        "maxgap2"           : None,
+        "mingap13"          : None,
+        "maxgap13"          : None,
+        "list_analyses"     : False,
+        "clean"             : False,
+        "clean_all"         : False,
+        "adl_file"          : None,
+        "event_condition"   : None,
+        "sqrts"             :13.0,
+        "ignore_locks"      :None,
+        "keephepmc"         :None,
+        "rerun"             :None,
+        "dry_run"           :None,
+        "cutlang"           :None,
+        "checkmate"         :None,
+        "colliderbit"       :None,
+        "copy"              :None,
+        "recaster"          :None,
+        "recast"            :None,
+    }
+
+    ns = SimpleNamespace()
+
+    for key, default_value in defaults.items():
+        setattr(ns, key, default_value)
+
+    for key, value in config_flat_dict.items():
+        setattr(ns, key, value)
+        
+
+    if "bias" in ns.topo and ns.njets > 0:
+        print(f"{ansi.RED}[mg5Wrapper] topo {ns.topo} seems a biased one but njets not equal zero?!{ansi.RESET}")
+        sys.exit()
+
+    if ns.topo in ["T1", "T2", "T1bbbb", "T2bb", "T2ttoff", "T1ttttoff"] and ns.mingap1 is None and not ns.list_analyses and not ns.clean and not ns.clean_all:
+        if "(" in ns.mass:
+            print(f"[mg5Wrapper] for topo {ns.topo} we set mingap1 to 1.")
+        ns.mingap1 = 1.
+
+    if ns.topo in ["T1tttt", "T2tt"] and ns.mingap1 is None and not ns.list_analyses and not ns.clean and not ns.clean_all:
+        if "(" in ns.mass:
+            print(f"[mg5Wrapper] for topo {ns.topo} we set mingap1 to 1.")
+        ns.mingap1 = 1.
+
+    if ns.topo in ["T1ttttoff", "T2ttoff"] and ns.maxgap1 is None and not ns.list_analyses and not ns.clean and not ns.clean_all:
+        if "(" in ns.mass:
+            print(f"[mg5Wrapper] for topo {ns.topo} we set maxgap1 to 180.")
+        ns.maxgap1 = 180.
+    
+    hname = socket.gethostname()
+    if hname.find(".")>0:
+        hname=hname[:hname.find(".")]
+    logfile = "baking.log"
+    lastline = None
+    if os.path.exists ( logfile ):
+        f=open( logfile,"rt")
+        lines = f.readlines()
+        f.close()
+        if len(lines)>0:
+            lastline = lines[-1].strip()
+    cmd = ""
+    for i,a in enumerate(sys.argv):
+        if i>0 and sys.argv[i-1] in [ "-m", "--masses" ]:
+            a='"%s"' % a
+        if i>0 and sys.argv[i-1] in [ "--analyses" ]:
+            a='"%s"' % a
+        cmd += a + " "
+    cmd = cmd[:-1]
+    if lastline == None or lastline != cmd:
+        with open(logfile,"a") as f:
+            f.write ( f"[{hname}] {time.asctime()}:\n{cmd}\n" )
+    nReqM = bakeryHelpers.nRequiredMasses ( ns.topo )
+    keepOrder=True
+    if ns.topo == "TGQ":
+        keepOrder=False
+    masses = bakeryHelpers.parseMasses ( ns.mass,
+                                         mingap1=ns.mingap1, maxgap1=ns.maxgap1,
+                                         mingap2=ns.mingap2, maxgap2=ns.maxgap2,
+                                         mingap13=ns.mingap13, maxgap13=ns.maxgap13 )
+    if ns.dry_run:
+        print ( f"[mg5Wrapper] masses: {masses}" )
+        sys.exit()
+    import random
+    random.shuffle ( masses )
+    nm = len(masses)
+    if nm == 0:
+        line = "[mg5Wrapper] no masses found within the constraints:"
+        if ns.mingap1 != None or ns.maxgap1 != None:
+            line += f" gap(1,2) not in [{ns.mingap1},{ns.maxgap1 if ns.maxgap1 is not None else '+inf'}];"
+        if ns.mingap13 != None or ns.maxgap13 != None:
+            line += f" gap(1,3) not in [{ns.mingap13},{ns.maxgap13 if ns.maxgap13 is not None else '+inf'}];"
+        if ns.mingap2 != None or ns.maxgap2 != None:
+            line += f" gap(2,3) not in [{ns.mingap2},{ns.maxgap2 if ns.maxgap2 is not None else '+inf'}];"
+        print ( f"{line}" )
+        locker.Locker( ns.sqrts, ns.topo, ns.ignore_locks ).unlock ( masses )
+        sys.exit()
+    if nReqM != len(masses[0]):
+        print ( "[mg5Wrapper] you gave %d masses, but %d are required for %s." % \
+                ( len(masses[0]), nReqM, ns.topo ) )
+        sys.exit()
+    nprocesses = bakeryHelpers.nJobs ( ns.nprocesses, nm )
+    
+    recaster = [ "MA5" ]
+    if ns.cutlang or ns.checkmate or ns.colliderbit:
+        recaster = [ "adl" ]
+        if ns.checkmate:
+            recaster = [ "cm2" ]
+        if ns.colliderbit:
+            recaster = [ "colliderbit" ]
+        ns.recast = True
+    if ns.checkmate and ns.cutlang:
+        print ( "[mg5Wrapper] both checkmate and cutlang have been asked for. please choose!" )
+        sys.exit()
+    if ns.checkmate and ns.colliderbit:
+        print ( "[mg5Wrapper] both checkmate and colliderbit have been asked for. please choose!" )
+        sys.exit()
+    if ns.cutlang and ns.colliderbit:
+        print ( "[mg5Wrapper] both cutlang and colliderbit have been asked for. please choose!" )
+        sys.exit()
+    recaster = [ "MA5" ]
+    mg5 = MG5Wrapper( vars(ns), recaster )
+    # mg5.info( "%d points to produce, in %d processes" % (nm,nprocesses) )
+    djobs = int(len(masses)/nprocesses)
+
+    def runChunk ( chunk, pid ):
+        for c in chunk:
+            mg5.run ( c, ns.analyses, pid )
+        print ( "%s[runChunk] finished chunk #%d%s" % \
+                ( ansi.GREEN, pid, ansi.RESET ) )
+
+    jobs=[]
+    for i in range(nprocesses):
+        chunk = masses[djobs*i:djobs*(i+1)]
+        if i == nprocesses-1:
+            chunk = masses[djobs*i:]
+        p = multiprocessing.Process(target=runChunk, args=(chunk,i))
+        jobs.append ( p )
+        p.start()
+    for j in jobs:
+        j.join()
+    if ns.bake:
+        import emCreator
+        from types import SimpleNamespace
+        # analyses = "atlas_susy_2016_07"
+        analyses = ns.analyses
+        args = SimpleNamespace ( masses="all", topo=ns.topo, njets=ns.njets, \
+                analyses = analyses, copy=ns.copy, keep=ns.keep, sqrts=ns.sqrts,
+                verbose=False, ma5=not ns.cutlang, cutlang=ns.cutlang, stats=True,
+                cleanup = False, checkmate=ns.checkmate, colliderbit = ns.colliderbit )
+        emCreator.run ( args )
+
+if __name__ == "__main__":    
     main()
