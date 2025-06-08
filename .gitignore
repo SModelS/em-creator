@@ -61,3 +61,12 @@ slurm.py
 cancel_jobs.py
 du-h
 du-h.temp
+
+# kagan ignores (development only)
+setup.py
+mg5.old/
+bakeryOption.py
+keep/
+CMS-EXO-20-004.ini
+default_ini.template
+models/
