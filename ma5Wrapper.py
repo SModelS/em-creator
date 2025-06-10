@@ -8,7 +8,7 @@
 .. moduleauthor:: Wolfgang Waltenberger <wolfgang.waltenberger@gmail.com>
 """
 
-import os, sys, colorama, subprocess, shutil, tempfile, time, io
+import os, sys, colorama, subprocess, shutil, tempfile, time, io, fcntl, json
 import multiprocessing
 import bakeryHelpers
 import locker
@@ -37,6 +37,7 @@ class MA5Wrapper:
         self.ma5results = "%s/ma5results/" % self.basedir
         bakeryHelpers.mkdir ( self.ma5results )
         self.ma5install = "%s/ma5/" % self.basedir
+        self.weightsdir = "%s/weights/" % self.basedir
         self.executable = "bin/ma5"
         if abs ( sqrts - 8 ) < .1:
             self.ma5install = "%s/ma5.8tev/" % self.basedir
@@ -106,6 +107,7 @@ class MA5Wrapper:
         f = open ( filename, "at" )
         recastcard = { "atlas_susy_2016_07": "delphes_card_atlas_exot_2015_03" }
         recastcard["atlas_susy_2013_02"] = "delphesma5tune_card_atlas_dileptonsusy"
+        recastcard["atlas_exot_2018_06"] = "sfs_card_atlas_exot_2018_05"
         recastcard["atlas_susy_2019_08"] = "delphes_card_atlas_susy_2019_08"
         recastcard["cms_sus_16_033"] = "delphes_card_cms_sus_16_033"
         recastcard["cms_sus_19_006"] = "delphes_card_cms_sus_19_006"
@@ -115,6 +117,7 @@ class MA5Wrapper:
         anas = set(self.analyses.split(","))
         versions = { "atlas_susy_2016_07": "1.2",
                      "atlas_susy_2013_02": "1.1",
+                     "atlas_exot_2018_06": "SFS",
                      "cms_sus_19_006": "1.2",
                      "atlas_susy_2019_08": "1.2",
                      "cms_sus_16_048": "1.2",
@@ -130,7 +133,10 @@ class MA5Wrapper:
                 recastcard[i]=f"delphes_card_{i}"
                 self.error ( "for now we will guess" )
                 # sys.exit()
-            f.write ( "%s         v%s        on    %s.tcl\n" % ( i, versions[i], recastcard[i] ) )
+            if "sfs" in recastcard[i].lower():
+                f.write("%s         v%s        on    %s.ma5\n" % (i, versions[i], recastcard[i]))
+            else:
+                f.write ( "%s         v%s        on    %s.tcl\n" % ( i, versions[i], recastcard[i] ) )
         f.close()
         self.debug ( "wrote recasting card %s in %s" % ( filename, os.getcwd() ) )
 
@@ -151,6 +157,8 @@ class MA5Wrapper:
         #f.write('install delphes\n')
         #f.write('install PAD\n')
         f.write('set main.recast = on\n')
+        # Set to True if you wish to keep the .root file
+        f.write('set main.recast.store_root = False\n')
         #filename = self.recastfile.replace(self.ma5install,"./")
         #f.write('set main.recast.card_path = %s\n' % filename )
         f.write('set main.recast.card_path = ./recast\n' )
@@ -213,40 +221,47 @@ class MA5Wrapper:
                 line = line.strip()
                 if line.startswith("#"):
                     continue
-                print ( line )
+                print ( line )    
 
-    def run( self, masses, hepmcfile, pid=None ):
+    def run(self, masses, hepmcfile, pid=None):
         """ Run MA5 over an hepmcfile, specifying the process
         :param pid: process id, for debugging
         :param hepmcfile: the hepcmfile name
         :returns: -1 if problem occured, 0 if all went smoothly,
                    1 if nothing needed to be done.
         """
+        print("Entered run function") 
+        print(f"masses: {masses}, hepmcfile: {hepmcfile}, pid: {pid}")
+
         self.checkInstallation()
         spid = ""
-        if pid != None:
+        if pid is not None:
             spid = "[%d]" % pid
-        self.commandfile = tempfile.mktemp ( prefix="ma5cmd", dir=self.ma5install )
-        self.teefile = tempfile.mktemp ( prefix="ma5", suffix=".run", dir="/tmp" )
-        process = "%s_%djet" % ( self.topo, self.njets )
-        hasAllInfo = self.checkForSummaryFile ( masses )
+    
+        self.commandfile = tempfile.mktemp(prefix="ma5cmd", dir=self.ma5install)
+        self.teefile = tempfile.mktemp(prefix="ma5", suffix=".run", dir="/tmp")
+        process = "%s_%djet" % (self.topo, self.njets)
+        hasAllInfo = self.checkForSummaryFile(masses)
+    
         if hasAllInfo:
-            return 1
-        if not os.path.exists ( hepmcfile ):
+            print("All necessary information is already available")
+            return {"exit_status": 1}
+
+        if not os.path.exists(hepmcfile):
             self.error ( "%scannot find hepmc file %s" % ( spid, hepmcfile ) )
             p = hepmcfile.find("Events")
             if not self.keep:
                 cmd = "rm -rf %s" % hepmcfile[:p]
-                o = subprocess.getoutput ( cmd )
+                o = subprocess.getoutput(cmd)
                 self.error ( "%sdeleting the folder %s: %s" % ( spid, cmd, o ) )
-            return -1
-            # sys.exit()
+            return {"exit_status": -1}
         # now write recasting card
         self.msg ( "%s Found hepmcfile at %s" % ( spid, hepmcfile ) )
-        self.writeRecastingCard ()
-        self.writeCommandFile( hepmcfile, process, masses )
-        Dir = bakeryHelpers.dirName ( process, masses )
+        self.writeRecastingCard()
+        self.writeCommandFile(hepmcfile, process, masses)
+        Dir = bakeryHelpers.dirName(process, masses)
         tempdir = "%s/ma5_%s" % ( self.basedir, Dir )
+
         a = subprocess.getoutput ( "mkdir %s" % tempdir )
         a = subprocess.getoutput ( "cp -r %s/bin %s/madanalysis %s/tools %s" % \
                                    ( self.ma5install, self.ma5install, self.ma5install, tempdir ) )
@@ -254,9 +269,10 @@ class MA5Wrapper:
         # a = subprocess.getoutput ( "cp -r %s %s" % ( self.recastfile, tempdir ) )
         a = subprocess.getoutput ( "mv %s %s/ma5cmd" % \
                                    ( self.commandfile, tempdir ) )
-
+       
         # then run MadAnalysis
         os.chdir ( tempdir )
+	
         cmd = "python3 %s -R -s ./ma5cmd 2>&1 | tee %s" % (self.executable, \
                 self.teefile )
         self.exe ( cmd, maxLength=None )
@@ -273,13 +289,48 @@ class MA5Wrapper:
                       ( tempdir, dirname )
         origdatfile = origdatfile.replace("//","/")
         errFree=True
+
         if not os.path.exists ( origdatfile ):
             errFree=False
             self.error ( "dat file %s does not exist!" % origdatfile )
         if not os.path.exists ( origsaffile ):
             errFree=False
             self.error ( "saf file %s does not exist!" % origsaffile )
+        
+        # New SAF file processing
+        saf_dir = f"{tempdir}/ANA_{self.topo}_{self.njets}jet.{smass}/Output/SAF/defaultset"
+        
+        signal_regions = {}
+        if os.path.exists(origdatfile):
+            with open(origdatfile, "r") as dat_file:
+                for line in dat_file:
+                    if line.startswith("#") or not line.strip():
+                        continue
+                    columns = line.split()
+                    analysis_name = columns[1]
+                    signal_region = columns[2]
+                    if analysis_name not in signal_regions:
+                        signal_regions[analysis_name] = []
+                    signal_regions[analysis_name].append(signal_region)
+        print("Signal regions detected: ", signal_regions)
+
+        saf_files = []
+        for analysis_name, regions in signal_regions.items():
+            analysis_dir = f"{saf_dir}/{analysis_name}/Cutflows"
+            if not os.path.exists(analysis_dir):
+                print(f"Directory {analysis_dir} does not exist!")
+                continue
+            for region in regions:
+                saf_file = f"{analysis_dir}/{region}.saf"
+                if os.path.exists(saf_file):
+                    saf_files.append(saf_file)
+                else:
+                    print(f"SAF file {saf_file} does not exist!")
+
+        print(f"SAF files collected: {saf_files}")
+       
         destdatfile = bakeryHelpers.datFile (  self.ma5results, self.topo, masses, self.sqrts )
+
         if errFree: ## only move if we have both
             shutil.move ( origdatfile, destdatfile )
             shutil.move ( origsaffile, destsaffile )
@@ -288,6 +339,23 @@ class MA5Wrapper:
             else:
                 cmd = f"rm -rf {hepmcfile}"
                 self.exe ( cmd )
+
+        # Call the extract function
+        effs, weights, timestamp = self.extract(masses, saf_files) 
+        #print(f"Extracted effs: {effs}, weights: {weights}, timestamp: {timestamp}") 
+
+        # Check if the weights  directory exists 
+        if not os.path.exists(self.weightsdir):
+            print(f"Creating the weights dir: {self.weightsdir}")
+            subprocess.getoutput(f"mkdir {self.weightsdir}")
+        else:
+            print(f"Weights dir already exists: {self.weightsdir}")
+
+        SModelS_analysis_name = bakeryHelpers.ma5AnaNameToSModelSName ( analysis_name )
+        output_file = f"{self.weightsdir}/{SModelS_analysis_name}.{self.topo}.{self.njets}jet.MA5.json"
+        # Write the signal region information for this mass point
+        self.write_weights(masses, weights, output_file)
+
         if errFree and not self.keep and os.path.exists ( tempdir ):
             self.exe ( f"rm -rf {tempdir}" )
         if False and not errFree: # skip this for now
@@ -296,7 +364,169 @@ class MA5Wrapper:
             bakeryHelpers.mkdir ( dirname )
             self.exe ( f"mv {tempdir} {dirname}" )
         os.chdir ( self.basedir )
-        return 0
+        return {"exit_status": 0}
+
+    def write_weights(self, mass, signal_region_data, output_file):
+        """
+        Writes signal region information to a file with locking to ensure thread safety.
+    
+        :param mass: Mass point
+        :param signal_region_data: List of dictionaries containing signal region info
+        :param output_file: Path to the output file
+        """
+        with open(output_file, 'a') as f:
+            fcntl.flock(f, fcntl.LOCK_EX)  # Lock the file to prevent race conditions
+
+            # Determine if the total number of events, sum of weights, and sum of weights squared are identical across all SRs
+            all_total_nevents = [entry['__nevents__'] for entry in signal_region_data]
+            all_total_weights = [entry['total_sum_weights'] for entry in signal_region_data]
+            all_total_weights_squared = [entry['total_sum_weights_squared'] for entry in signal_region_data]
+
+            unique_nevents = set(all_total_nevents)
+            unique_total_weights = set(all_total_weights)
+            unique_total_weights_squared = set(all_total_weights_squared)
+
+            if len(unique_nevents) > 1 or len(unique_total_weights) > 1 or len(unique_total_weights_squared) > 1:
+                raise ValueError("Mismatch in the initial number of events or the initial sum of weights or squared weights across signal regions. Please check the MadAnalysis5 output.")
+
+            total_nevents_common = unique_nevents.pop()
+            total_sum_weights_common = unique_total_weights.pop()
+            total_sum_weights_squared_common = unique_total_weights_squared.pop()
+
+            # Construct the mass-specific dictionary
+            mass_entry = {
+                str(mass): {
+                    entry['SR']: {
+                        'nevents': entry['final_nevents'],
+                        'Sum_of_Weights': entry['final_sum_weights'],
+                        'Sum_of_Weights_Squared': entry['final_sum_weights_squared']
+                    }
+                    for entry in signal_region_data
+                }
+            }
+
+            # Add common values at the top level
+            mass_entry[str(mass)]['Common'] = {
+                '__total_nevents__' : total_nevents_common,
+                '__Total_Sum_of_Weights__': total_sum_weights_common,
+                '__Total_Sum_of_Weights_Squared__': total_sum_weights_squared_common
+            }
+
+            # Serialize the dictionary to a JSON-like string with sorted keys for consistent formatting
+            formatted_entry = json.dumps(mass_entry, indent=None, separators=(',', ': '))
+
+            # Write the formatted entry followed by a newline
+            f.write(formatted_entry + '\n')
+
+            fcntl.flock(f, fcntl.LOCK_UN)  # Unlock the file
+
+    def extract(self, masses, saf_files):
+        """Extract efficiencies and SAF file weight information from MA5."""
+        print("Entered extract function")
+        print(f"Received masses: {masses}")
+        print(f"SAF files provided: {saf_files}")
+
+        if not saf_files:
+            print("No SAF files to process")
+            return {}, [], 0.0
+
+        topo = self.topo
+        njets = self.njets
+        process = f"{topo}_{njets}jet"
+        summaryfile = bakeryHelpers.datFile(self.ma5results, topo, masses, self.sqrts)
+
+        print(f"Checking summary file: {summaryfile}")
+        if not os.path.exists(summaryfile):
+            print(f"Summary file {summaryfile} does not exist")
+            return {}, [], 0.0
+
+        timestamp = os.stat(summaryfile).st_mtime
+        with open(summaryfile, "r") as f:
+            lines = f.readlines()
+
+        print(f"Summary file contains {len(lines)} lines")
+        effs = {}
+        for line in lines:
+            if "#" in line:
+                line = line.split("#")[0].strip()
+            if not line:
+                continue
+            tokens = line.split()
+            #print(f"Processing line: {tokens}")
+
+            if len(tokens) == 10:
+                dsname, ananame, sr, sig95exp, sig95obs, pp, eff, statunc, systunc, totunc = tokens
+            elif len(tokens) == 8:
+                dsname, ananame, sr, sig95exp, sig95obs, pp, eff, statunc = tokens
+            elif len(tokens) == 7:
+                dsname, ananame, sr, sig95exp, pp, eff, statunc = tokens
+            else:
+                print(f"Cannot parse line: {tokens}")
+                continue
+
+            eff = float(eff)
+            if ananame not in effs:
+                effs[ananame] = {}
+            effs[ananame][sr] = eff
+            print(f"Updated effs: {effs}")
+
+        saf_weights = []
+        for saf_file in saf_files:
+            print(f"Processing SAF file: {saf_file}")
+            if not os.path.exists(saf_file):
+                print(f"SAF file {saf_file} does not exist!")
+                continue
+
+            with open(saf_file, "r") as f:
+                lines = f.readlines()
+
+            print(f"SAF file {saf_file} contains {len(lines)} lines")
+            initial_weights, last_weights = None, None
+
+            for i, line in enumerate(lines):
+                if line.startswith('"Initial number of events"'):
+                    try:
+                        initial_weights = (
+                            float(lines[i + 1].split()[0]), # the intial number of events
+                            float(lines[i + 2].split()[0]), # Total sum of weights
+                            float(lines[i + 3].split()[0]), # Total sum of weights squared
+                        )
+                        #print(f"Extracted initial nb of events and weights from {saf_file}: {initial_weights}")
+                    except (IndexError, ValueError) as e:
+                        print(f"Error extracting initial weights from {saf_file}: {e}")
+                elif "<Counter>" in line and not "</Counter>" in line:
+                    try:
+                        last_weights = (
+                            float(lines[i + 2].split()[0]),
+                            float(lines[i + 3].split()[0]),
+                            float(lines[i + 4].split()[0]),
+                        )
+                        #print(f"Extracted last weights from {saf_file}: {last_weights}")
+                    except (IndexError, ValueError) as e:
+                        print(f"Error extracting last weights from {saf_file}: {e}")
+
+            if initial_weights and last_weights:
+                SR_name = os.path.splitext(os.path.basename(saf_file))[0]
+                saf_weights.append(
+                    {
+                        "SR": SR_name,
+                        "__nevents__": initial_weights[0],
+                        "total_sum_weights": initial_weights[1],
+                        "total_sum_weights_squared": initial_weights[2],
+                        "final_nevents": last_weights[0],
+                        "final_sum_weights": last_weights[1],
+                        "final_sum_weights_squared": last_weights[2],
+                    }
+                )
+                #print(f"Added weights for {saf_file}: {saf_weights[-1]}")
+            else:
+                print(f"No weights extracted from {saf_file}")
+
+        print(f"Final efficiencies: {effs}")
+        print(f"Final SAF weights: {saf_weights}")
+        print(f"Timestamp from summary file: {timestamp}")
+
+        return effs, saf_weights, timestamp
 
     def exe ( self, cmd, maxLength=100 ):
         """ execute cmd in shell

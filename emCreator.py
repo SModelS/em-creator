@@ -352,6 +352,10 @@ class emCreator ( LoggerBase ):
 
     def writeStatsFile ( self, statsfile : str, stats : dict ):
         """ write stats to statsfile """
+        if stats is None:
+            self.pprint(f"Warning: stats is None, initializing to empty dict.")
+            stats = {}
+
         f = open ( statsfile, "w" )
         f.write ( f"# created {time.asctime()}\n" )
         f.write ( "{" )

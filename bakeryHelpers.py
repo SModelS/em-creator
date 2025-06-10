@@ -95,9 +95,8 @@ def baseDir():
             ret = f.read()
         ret = ret.strip()
         return ret
-    return "./"
     # ret = "/scratch-cbe/users/wolfgan.waltenberger/git/em-creator/"
-    subdir = "git/em-creator"
+    subdir = "em-creator"
     ret = "~/%s/" % subdir
     ret = os.path.expanduser ( ret )
     if ret.count ( subdir ) == 2:
@@ -291,6 +290,8 @@ def ma5AnaNameToSModelSName ( name ):
     name = name.replace("cms","CMS")
     name = name.replace("susy","SUSY")
     name = name.replace("sus","SUS")
+    name = name.replace("exo","EXO")
+    name = name.replace("exot","EXOT")
     name = name.replace("_","-")
     return name
 
@@ -598,7 +599,7 @@ def getListOfCm2Masses ( topo, sqrts, ana ):
 def nRequiredMasses(topo):
     """ find out how many masses a topology requires """
     M=set()
-    with open( f"templates/slha/{topo}_template.slha", "r" ) as f:
+    with open( f"{baseDir()}/templates/slha/{topo}_template.slha", "r" ) as f:
         for line in f.readlines():
             p1 = line.find("#")
             if p1 > -1:

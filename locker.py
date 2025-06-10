@@ -116,7 +116,7 @@ class Locker:
         resultsdir = os.path.join(self.basedir, "mg5results")
         dest = "%s/%s_%s.%d.hepmc.gz" % \
                ( resultsdir, self.topo, smasses, self.sqrts )
-        return dest
+        return os.path.abspath(dest)
 
     def hasHEPMC ( self, masses ):
         """ does it have a valid HEPMC file? if yes, then skip the point """
