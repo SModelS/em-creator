@@ -24,6 +24,9 @@ import bakeryHelpers
 from bakeryHelpers import rmLocksOlderThan
 import locker
 from typing import Dict, List
+import logging
+
+LOG = logging.getLogger(__name__)
 
 
 class MG5Wrapper:
@@ -144,6 +147,20 @@ class MG5Wrapper:
                 pass
                 # self.error ( "we seem to not be inside of a singularity container!" )
                 # sys.exit(-1)
+
+    def checkFortranInstallation(self):
+        """MG5 needs Fortran compiler to run correctly.
+        If gfortran is not found we throw exception.
+        """
+        # FIXME: Cover any additional ways to specify fortran compiler for MG5
+        LOG.debug("Checking Fortran installation.")
+        from shutil import which
+
+        if which("gfortran") is None:
+            LOG.error(
+                "Could not find gfortran installation. MG5 will not work correctly without Fortran compiler."
+            )
+            raise Exception("MG5 requires gfortran to run correctly.")
 
     def determineMG5Version(self):
         """find out version of mg5, by peeking into mg5 directory"""
@@ -334,6 +351,8 @@ class MG5Wrapper:
         """
         os.system("echo $LD_LIBRARY_PATH")
         self.sleep()
+        # Fortran is needed for MG5 to run correctly
+        self.checkFortranInstallation()
         self.checkInstallation()
         import emCreator
 
