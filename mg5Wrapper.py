@@ -8,9 +8,18 @@
 .. moduleauthor:: Wolfgang Waltenberger <wolfgang.waltenberger@gmail.com>
 """
 
-import os, sys, colorama, subprocess, shutil, tempfile, time, socket, random, ast
+import os
+import sys
+import subprocess
+import shutil
+import tempfile
+import time
+import socket
+import random
 from colorama import Fore as ansi
-import multiprocessing, glob, io
+import multiprocessing
+import glob
+import io
 import bakeryHelpers
 from bakeryHelpers import rmLocksOlderThan
 import locker
@@ -131,7 +140,7 @@ class MG5Wrapper:
         if "clip" in hostname:
             try:
                 singularity = os.environ["SINGULARITY_NAME"]
-            except KeyError as e:
+            except KeyError:
                 pass
                 # self.error ( "we seem to not be inside of a singularity container!" )
                 # sys.exit(-1)
@@ -238,7 +247,7 @@ class MG5Wrapper:
             self.info(f"topo is {self.topo}: switch to new sde strategy (2)")
             g.write(f"# for topos like {self.topo} we use the new sde strategy\n")
             g.write(
-                f"# see: https://indico.cern.ch/event/1041378/contributions/4374468/attachments/2258140/3832110/21_06_04_VBFSCAN_new_ps.pdf"
+                "# see: https://indico.cern.ch/event/1041378/contributions/4374468/attachments/2258140/3832110/21_06_04_VBFSCAN_new_ps.pdf"
             )
             g.write("\n")
             g.write(" 2 = sde_strategy ! the new integration strategy\n")
@@ -281,12 +290,12 @@ class MG5Wrapper:
                 prev = f"M{n - i - 1}"
                 if len(tokens) > 1:
                     mt = tokens[1]
-                    if "+" in mt and not "+" in repl:
+                    if "+" in mt and "+" not in repl:
                         mt = mt.replace(prev, str(masses[i]))
                         try:
                             mt = str(eval(mt))
                             repl = mt
-                        except Exception as e:
+                        except Exception:
                             pass
                 if "+2" in line and False:
                     print("mt", mt)
@@ -313,7 +322,7 @@ class MG5Wrapper:
             f.close()
             try:
                 s = int(txt)
-            except Exception as e:
+            except Exception:
                 pass
         if s > 0:
             self.info(f"sleeping for {s} seconds before next point")
@@ -334,7 +343,7 @@ class MG5Wrapper:
         if isIn and not self.rerun:
             return
         if (
-            not "adl" in self.recaster
+            "adl" not in self.recaster
             and self.locker.hasMA5Files(masses)
             and not self.rerun
         ):
@@ -589,7 +598,7 @@ class MG5Wrapper:
             if "generate" in line or "add process" in line:
                 line = line.strip()
                 line = line.replace("generate ", "add process ")
-                if "$" in line and not " $" in line:
+                if "$" in line and " $" not in line:
                     self.error("found a line with dollar and no space %s" % line)
                     self.error("please add a space before the dollar")
                     sys.exit()
@@ -619,7 +628,7 @@ class MG5Wrapper:
             try:
                 os.mkdir(dirname)
                 return True
-            except FileExistsError as e:
+            except FileExistsError:
                 # can happen if many processses start at once
                 return False
         return False
@@ -656,12 +665,12 @@ class MG5Wrapper:
         cmd = f"{pythiaconfig} --with-hepmc2"
         o = subprocess.getoutput(cmd)
         if o == "false":
-            raise Exception(f"pythia8 has no hepmc2 support")
+            raise Exception("pythia8 has no hepmc2 support")
         if False:
             cmd = f"{pythiaconfig} --with-lhapdf6"
             o = subprocess.getoutput(cmd)
             if o == "false":
-                raise Exception(f"pythia8 has no lhapdf6 support")
+                raise Exception("pythia8 has no lhapdf6 support")
         return True
 
     def execute(self, slhaFile, masses):
@@ -1043,7 +1052,6 @@ def main():
     if args.dry_run:
         print(f"[mg5Wrapper] masses: {masses}")
         sys.exit()
-    import random
 
     random.shuffle(masses)
     nm = len(masses)
@@ -1270,7 +1278,6 @@ def main_via_ini():
     if ns.dry_run:
         print(f"[mg5Wrapper] masses: {masses}")
         sys.exit()
-    import random
 
     random.shuffle(masses)
     nm = len(masses)
