@@ -8,16 +8,29 @@
 .. moduleauthor:: Wolfgang Waltenberger <wolfgang.waltenberger@gmail.com>
 """
 
-import os, sys, colorama, subprocess, shutil, tempfile, time, socket, random, ast
+import os
+import sys
+import subprocess
+import shutil
+import tempfile
+import time
+import socket
+import random
 from colorama import Fore as ansi
-import multiprocessing, glob, io
+import multiprocessing
+import glob
+import io
 import bakeryHelpers
 from bakeryHelpers import rmLocksOlderThan
 import locker
 from typing import Dict, List
+import logging
+
+LOG = logging.getLogger(__name__)
+
 
 class MG5Wrapper:
-    def __init__ ( self, args : Dict, recaster : List ):
+    def __init__(self, args: Dict, recaster: List):
         """
         :param args: the command line args, as a dictionary
         :param recaster: perform recasting (ma5 or cutlang)
@@ -26,15 +39,14 @@ class MG5Wrapper:
         self.nevents = args["nevents"]
         self.checkHost()
         self.basedir = bakeryHelpers.baseDir()
-        os.chdir ( self.basedir )
+        os.chdir(self.basedir)
         self.tempdir = bakeryHelpers.tempDir()
         self.resultsdir = os.path.join(self.basedir, "mg5results")
         self.recast = args["recast"]
         self.adl_file = args["adl_file"]
         self.event_condition = args["event_condition"]
-        self.mkdir ( self.resultsdir )
-        self.locker = locker.Locker ( args["sqrts"], args["topo"],
-                                      args["ignore_locks"] )
+        self.mkdir(self.resultsdir)
+        self.locker = locker.Locker(args["sqrts"], args["topo"], args["ignore_locks"])
         self.topo = args["topo"]
         self.keep = args["keep"]
         self.keephepmc = args["keephepmc"]
@@ -46,117 +58,137 @@ class MG5Wrapper:
         self.tempf = None
         self.sqrts = args["sqrts"]
         self.recaster = recaster
-        self.pyver = 3 ## python version
+        self.pyver = 3  ## python version
         self.setMG5Version()
         if "py3" in self.ver:
             self.pyver = 3
-        if not os.path.isdir ( self.mg5install ):
-            self.error ( "mg5 install is missing??" )
+        if not os.path.isdir(self.mg5install):
+            self.error("mg5 install is missing??")
         self.executable = os.path.join(self.mg5install, "bin/mg5_aMC")
-        if not os.path.exists ( self.executable ):
-            self.info ( "cannot find mg5 installation at %s" % self.mg5install )
-            if os.path.exists ( self.mg5install ):
-                subprocess.getoutput ( f"rm -rf {self.mg5install}" )
-            self.info ( "cannot even find mg5/ directory." )
+        if not os.path.exists(self.executable):
+            self.info("cannot find mg5 installation at %s" % self.mg5install)
+            if os.path.exists(self.mg5install):
+                subprocess.getoutput(f"rm -rf {self.mg5install}")
+            self.info("cannot even find mg5/ directory.")
             localbackup = f"{self.basedir}/mg5.backup/"
             backupdir = "/groups/hephy/pheno/ww/mg5"
             templatedir = f"{self.basedir}/mg5.template"
             destdir = f"{self.basedir}/mg5"
-            if os.path.exists ( localbackup ):
-                self.info ( f"local backup found at {localbackup}" )
-                self.exe ( f"cp -r {localbackup} {destdir}" )
-            elif os.path.exists ( backupdir ):
-                self.info ( f"NO local backup found at {localbackup}" )
-                self.exe ( f"cp -r {backupdir} {destdir}" )
-                self.info ( f"clip backup found at {backupdir}" )
-            elif os.path.exists ( templatedir ):
-                self.info ( f"NO clip backup found at {backupdir}" )
-                self.exe ( f"cp -r {templatedir} {destdir}" )
-                self.info ( f"template backup found at {templatedir}" )
-                self.exe ( "mg5/make.py" )
-        if not os.path.exists ( f"{self.mg5install}/idm" ):
-            subprocess.getoutput ( f"cp -r idm {self.mg5install}" )
+            if os.path.exists(localbackup):
+                self.info(f"local backup found at {localbackup}")
+                self.exe(f"cp -r {localbackup} {destdir}")
+            elif os.path.exists(backupdir):
+                self.info(f"NO local backup found at {localbackup}")
+                self.exe(f"cp -r {backupdir} {destdir}")
+                self.info(f"clip backup found at {backupdir}")
+            elif os.path.exists(templatedir):
+                self.info(f"NO clip backup found at {backupdir}")
+                self.exe(f"cp -r {templatedir} {destdir}")
+                self.info(f"template backup found at {templatedir}")
+                self.exe("mg5/make.py")
+        if not os.path.exists(f"{self.mg5install}/idm"):
+            subprocess.getoutput(f"cp -r idm {self.mg5install}")
         self.determineMG5Version()
         self.templateDir = os.path.join(self.basedir, "templates/")
-        ebeam = str(int(self.sqrts*1000/2))
+        ebeam = str(int(self.sqrts * 1000 / 2))
         ptlund = "-1"
         ptlund = "2."
         ktdurham = "-1."
-        self.mgParams = { 'EBEAM': ebeam, # Single Beam Energy expressed in GeV
-                          'NEVENTS': str(self.nevents), 'MAXJETFLAVOR': '5',
+        self.mgParams = {
+            "EBEAM": ebeam,  # Single Beam Energy expressed in GeV
+            "NEVENTS": str(self.nevents),
+            "MAXJETFLAVOR": "5",
             #              'PDFLABEL': "'lhapdf'", 'XQCUT': '20', 'QCUT': '10',
-                          'PDFLABEL': "'nn23lo1'", 'XQCUT': 'M[0]/4',
-                          'PTLUND': ptlund, 'KTDURHAM': ktdurham,
-                          ## xqcut for gluino-gluino production: mgluino/4
-        }#,'qcut': '90'}
+            "PDFLABEL": "'nn23lo1'",
+            "XQCUT": "M[0]/4",
+            "PTLUND": ptlund,
+            "KTDURHAM": ktdurham,
+            ## xqcut for gluino-gluino production: mgluino/4
+        }  # ,'qcut': '90'}
         if "TChi" in self.topo or "THig" in self.topo:
             # for electroweakinos go lower in xqcut
-            self.mgParams["XQCUT"]="M[0]/6"
-       
+            self.mgParams["XQCUT"] = "M[0]/6"
+
         self.correctPythia8CfgFile()
-        self.msg ( "remove potential old cruft" )
-        rmLocksOlderThan ( 3 ) ## remove locks older than 3 hours
+        self.msg("remove potential old cruft")
+        rmLocksOlderThan(3)  ## remove locks older than 3 hours
         from utils import rmOld
+
         stats = rmOld.createStats()
         # rmOld.rmOlderThan ( stats, 8, False )
-        self.info ( f"initialised MG5 {self.ver}" )
+        self.info(f"initialised MG5 {self.ver}")
 
-    def setMG5Version ( self ):
+    def setMG5Version(self):
         self.ver = "???"
         versionfile = f"{self.mg5install}/VERSION"
-        if os.path.exists ( versionfile ):
-            with open ( versionfile, "rt" ) as f:
+        if os.path.exists(versionfile):
+            with open(versionfile, "rt") as f:
                 lines = f.readlines()
                 f.close()
                 for line in lines:
                     if "version =" in line:
-                        self.ver = line.replace("version =","").strip()
+                        self.ver = line.replace("version =", "").strip()
 
-    def checkHost ( self ):
-        """ check which host and environment we are in. Warn against running
-            outside of singularity container, on clip """
+    def checkHost(self):
+        """check which host and environment we are in. Warn against running
+        outside of singularity container, on clip"""
         import socket
+
         hostname = socket.gethostname()
         if "clip-login-1" in hostname:
-            self.error ( "WARNING: running on the login node!" )
-            #if self.nevents > 200:
+            self.error("WARNING: running on the login node!")
+            # if self.nevents > 200:
             #
             #    sys.exit()
         if "clip" in hostname:
             try:
                 singularity = os.environ["SINGULARITY_NAME"]
-            except KeyError as e:
+            except KeyError:
                 pass
-                #self.error ( "we seem to not be inside of a singularity container!" )
-                #sys.exit(-1)
+                # self.error ( "we seem to not be inside of a singularity container!" )
+                # sys.exit(-1)
 
-    def determineMG5Version ( self ):
-        """ find out version of mg5, by peeking into mg5 directory """
-        files = glob.glob ( "mg5/MG5_aMC_v*.tar.gz" )
+    def checkFortranInstallation(self):
+        """MG5 needs Fortran compiler to run correctly.
+        If gfortran is not found we throw exception.
+        """
+        # FIXME: Cover any additional ways to specify fortran compiler for MG5
+        LOG.debug("Checking Fortran installation.")
+        from shutil import which
+
+        if which("gfortran") is None:
+            LOG.error(
+                "Could not find gfortran installation. MG5 will not work correctly without Fortran compiler."
+            )
+            raise Exception("MG5 requires gfortran to run correctly.")
+
+    def determineMG5Version(self):
+        """find out version of mg5, by peeking into mg5 directory"""
+        files = glob.glob("mg5/MG5_aMC_v*.tar.gz")
         if len(files) != 1:
-            self.msg ( "I dont understand, I see %d MG5 tarballs" % len(files) )
+            self.msg("I dont understand, I see %d MG5 tarballs" % len(files))
             return
-        ver = files[0].replace(".tar.gz","").replace("mg5/","")
-        ver = ver.replace ( "MG5_aMC_", "" ).replace(".","_")
-        if not ver.startswith ( "v" ):
-            self.msg ( "I dont understand the version id %s" % ver )
+        ver = files[0].replace(".tar.gz", "").replace("mg5/", "")
+        ver = ver.replace("MG5_aMC_", "").replace(".", "_")
+        if not ver.startswith("v"):
+            self.msg("I dont understand the version id %s" % ver)
             return
-        self.debug ( f"this is MG5 {ver}" )
-        if ver.startswith ( "v" ):
+        self.debug(f"this is MG5 {ver}")
+        if ver.startswith("v"):
             self.ver = ver
         if "py3" in ver:
             self.pyver = 3
 
-    def correctPythia8CfgFile ( self ):
-        """ a simple method intended to check if we have to add SysCalc:qCutList=90
-            to the pythia8 configuration """
+    def correctPythia8CfgFile(self):
+        """a simple method intended to check if we have to add SysCalc:qCutList=90
+        to the pythia8 configuration"""
         ## qcut: SysCalc:qCutList in mg5/Template/LO/Cards/pythia8_card_default.dat
-        #self.msg ( "FIXME we shouldnt be using this!" )
+        # self.msg ( "FIXME we shouldnt be using this!" )
         return
-        self.msg ( "now checking if pythia8 config needs correction" )
+        self.msg("now checking if pythia8 config needs correction")
         needsCorrection = True
         cfgFile = "mg5/Template/LO/Cards/pythia8_card_default.dat"
-        f = open ( cfgFile, "rt" )
+        f = open(cfgFile, "rt")
         lines = f.readlines()
         f.close()
         for line in lines:
@@ -168,41 +200,37 @@ class MG5Wrapper:
                 continue
             if "SysCalc:qCutList" in line:
                 needsCorrection = False
-        if "2_6" in self.ver: # only needed for 2_7 i think
+        if "2_6" in self.ver:  # only needed for 2_7 i think
             needsCorrection = False
         if not needsCorrection:
-            self.msg ( "%s does not need correction" % cfgFile )
+            self.msg("%s does not need correction" % cfgFile)
             return
-        self.msg ( "seems like %s needs qCutList added" % cfgFile )
-        f = open ( cfgFile, "at" )
-        f.write ( "SysCalc:qCutList = 90.\n" )
+        self.msg("seems like %s needs qCutList added" % cfgFile)
+        f = open(cfgFile, "at")
+        f.write("SysCalc:qCutList = 90.\n")
         f.close()
 
-    def info ( self, *msg ):
-        print ( "%s[mg5Wrapper] %s%s" % ( ansi.YELLOW, " ".join ( msg ), \
-                   ansi.RESET ) )
+    def info(self, *msg):
+        print("%s[mg5Wrapper] %s%s" % (ansi.YELLOW, " ".join(msg), ansi.RESET))
 
-    def announce ( self, *msg ):
-        print ( "%s[mg5Wrapper] %s%s" % ( ansi.GREEN, " ".join ( msg ), \
-                   ansi.RESET ) )
+    def announce(self, *msg):
+        print("%s[mg5Wrapper] %s%s" % (ansi.GREEN, " ".join(msg), ansi.RESET))
 
-    def debug( self, *msg ):
+    def debug(self, *msg):
         pass
 
-    def msg ( self, *msg):
-        print ( "[mg5Wrapper] %s" % " ".join ( msg ) )
+    def msg(self, *msg):
+        print("[mg5Wrapper] %s" % " ".join(msg))
 
-    def error ( self, *msg ):
-        print ( "%s[mg5Wrapper] %s%s" % ( ansi.RED, " ".join ( msg ), \
-                   ansi.RESET ) )
+    def error(self, *msg):
+        print("%s[mg5Wrapper] %s%s" % (ansi.RED, " ".join(msg), ansi.RESET))
 
-    def writePythiaCard ( self, process="", masses="" ):
-        """ this method writes the pythia card for within mg5.
+    def writePythiaCard(self, process="", masses=""):
+        """this method writes the pythia card for within mg5.
         :param process: fixme (eg T2_1jet)
         """
-        self.runcard = tempfile.mktemp ( prefix="run", suffix=".card",
-                                         dir=self.tempdir )
-        self.debug ( f"writing pythia run card {self.runcard}" )
+        self.runcard = tempfile.mktemp(prefix="run", suffix=".card", dir=self.tempdir)
+        self.debug(f"writing pythia run card {self.runcard}")
         templatefile = f"{self.templateDir}/template_run_card.dat"
         if "TRV1bias" in self.topo:
             templatefile = f"{self.templateDir}/template_run_card_TRV1_bias.dat"
@@ -212,200 +240,233 @@ class MG5Wrapper:
             templatefile = f"{self.templateDir}/template_run_card_bias.dat"
         if self.topo == "TRV1" or self.topo == "TRS1":
             templatefile = f"{self.templateDir}/template_run_card_TRV1_TRS1_no-bias.dat"
-        if not os.path.exists ( templatefile ):
-            self.error ( f"cannot find {templatefile}" )
+        if not os.path.exists(templatefile):
+            self.error(f"cannot find {templatefile}")
             sys.exit()
-        tfile = open( templatefile,'r')
+        tfile = open(templatefile, "r")
         lines = tfile.readlines()
         tfile.close()
-        g = open ( self.runcard, "w" )
+        g = open(self.runcard, "w")
         for line in lines:
-            for k,v in self.mgParams.items():
+            for k, v in self.mgParams.items():
                 if k in line:
                     vold = v
-                    if type(v)==str and "M[0]" in v:
+                    if type(v) == str and "M[0]" in v:
                         m0 = masses[0]
-                        if bakeryHelpers.isAssociateProduction ( self.topo ):
-                            m0 = ( masses[0] + masses[1] ) / 2. ## mean!
+                        if bakeryHelpers.isAssociateProduction(self.topo):
+                            m0 = (masses[0] + masses[1]) / 2.0  ## mean!
                             # m0 = min( masses[0], masses[1] )
-                        v = v.replace("M[0]",str(m0))
-                        v = str(eval (v ))
-                    line = line.replace( f"@@{k}@@",v)
-            g.write ( line )
-        if False and self.topo in [ "TChiQ" ]:
-            self.info( f"topo is {self.topo}: switch to new sde strategy (2)" )
-            g.write ( f"# for topos like {self.topo} we use the new sde strategy\n" )
-            g.write ( f"# see: https://indico.cern.ch/event/1041378/contributions/4374468/attachments/2258140/3832110/21_06_04_VBFSCAN_new_ps.pdf" )
-            g.write ( "\n" )
-            g.write ( " 2 = sde_strategy ! the new integration strategy\n" )
+                        v = v.replace("M[0]", str(m0))
+                        v = str(eval(v))
+                    line = line.replace(f"@@{k}@@", v)
+            g.write(line)
+        if False and self.topo in ["TChiQ"]:
+            self.info(f"topo is {self.topo}: switch to new sde strategy (2)")
+            g.write(f"# for topos like {self.topo} we use the new sde strategy\n")
+            g.write(
+                "# see: https://indico.cern.ch/event/1041378/contributions/4374468/attachments/2258140/3832110/21_06_04_VBFSCAN_new_ps.pdf"
+            )
+            g.write("\n")
+            g.write(" 2 = sde_strategy ! the new integration strategy\n")
             # g.write ( " 2 = hard_survey ! not sure if this is needed, nor what it does\n" )
         g.close()
         self.info(f"wrote run card {self.runcard} for {str(masses)}[{self.topo}]")
 
-    def writeCommandFile ( self, process = "", masses = None ):
-        """ this method writes the commands file for mg5.
+    def writeCommandFile(self, process="", masses=None):
+        """this method writes the commands file for mg5.
         :param process: fixme (eg T2tt_1jet)
         """
-        self.commandfile = tempfile.mktemp ( prefix="mg5cmd", dir=self.tempdir )
-        f = open(self.commandfile,'w')
-        f.write('set automatic_html_opening False\n' )
-        f.write('launch %s\n' % bakeryHelpers.dirName(process,masses))
-        f.write('shower=Pythia8\n')
-        f.write('detector=OFF\n')
-        #f.write('detector=Delphes\n')
-        #f.write('pythia=ON\n')
-        #f.write('madspin=OFF\n')
+        self.commandfile = tempfile.mktemp(prefix="mg5cmd", dir=self.tempdir)
+        f = open(self.commandfile, "w")
+        f.write("set automatic_html_opening False\n")
+        f.write("launch %s\n" % bakeryHelpers.dirName(process, masses))
+        f.write("shower=Pythia8\n")
+        f.write("detector=OFF\n")
+        # f.write('detector=Delphes\n')
+        # f.write('pythia=ON\n')
+        # f.write('madspin=OFF\n')
         # f.write('order=LO\n')
         # f.write('reweight=ON\n')
-        f.write('0\n')
-        f.write('0\n')
+        f.write("0\n")
+        f.write("0\n")
         f.close()
 
-    def pluginMasses( self, slhaTemplate, masses ):
-        """ take the template slha file and plug in
-            masses """
-        f=open( self.templateDir+"/"+slhaTemplate,"r")
-        lines=f.readlines()
+    def pluginMasses(self, slhaTemplate, masses):
+        """take the template slha file and plug in
+        masses"""
+        f = open(self.templateDir + "/" + slhaTemplate, "r")
+        lines = f.readlines()
         f.close()
-        self.slhafile = tempfile.mktemp(suffix=".slha",dir=self.tempdir )
-        f=open( self.slhafile,"w")
-        n=len(masses)
+        self.slhafile = tempfile.mktemp(suffix=".slha", dir=self.tempdir)
+        f = open(self.slhafile, "w")
+        n = len(masses)
         for line in lines:
             tokens = line.split()
             for i in range(n):
                 repl = str(masses[i])
-                prev = f"M{n-i-1}"
-                if len(tokens)>1:
+                prev = f"M{n - i - 1}"
+                if len(tokens) > 1:
                     mt = tokens[1]
-                    if "+" in mt and not "+" in repl:
-                        mt = mt.replace ( prev, str(masses[i]) )
+                    if "+" in mt and "+" not in repl:
+                        mt = mt.replace(prev, str(masses[i]))
                         try:
-                            mt=str(eval(mt))
-                            repl=mt
-                        except Exception as e:
+                            mt = str(eval(mt))
+                            repl = mt
+                        except Exception:
                             pass
                 if "+2" in line and False:
-                    print ( "mt", mt )
-                    print ( f"replacing with {repl}" )
-                    print ( f"line is {line}" )
+                    print("mt", mt)
+                    print(f"replacing with {repl}")
+                    print(f"line is {line}")
                 p1 = line.find("+")
-                p2 = line.find(" ",p1)
+                p2 = line.find(" ", p1)
                 addOn = line[p1:p2]
-                if addOn in [ "+00", "+" ]:
+                if addOn in ["+00", "+"]:
                     addOn = ""
-                line = line.replace ( prev+addOn, repl )
-            f.write ( line )
+                line = line.replace(prev + addOn, repl)
+            f.write(line)
         f.close()
 
-    def sleep ( self ):
-        """ if a file called sleep exists with an integer number in it,
+    def sleep(self):
+        """if a file called sleep exists with an integer number in it,
         then sleep that long before starting the next point.
-        meant to be used to control the production on an HPC cluster """
+        meant to be used to control the production on an HPC cluster"""
         sleepFile = f"{self.basedir}/sleep"
         s = 0
-        if os.path.exists ( sleepFile ):
-            f = open(sleepFile,"rt")
+        if os.path.exists(sleepFile):
+            f = open(sleepFile, "rt")
             txt = f.read()
             f.close()
             try:
-                s = int ( txt )
-            except Exception as e:
+                s = int(txt)
+            except Exception:
                 pass
         if s > 0:
-            self.info ( f"sleeping for {s} seconds before next point" )
-            time.sleep ( s )
+            self.info(f"sleeping for {s} seconds before next point")
+            time.sleep(s)
 
-    def run( self, masses, analyses, pid=None ):
-        """ Run MG5 for topo, with njets additional ISR jets, giving
+    def run(self, masses, analyses, pid=None):
+        """Run MG5 for topo, with njets additional ISR jets, giving
         also the masses as a list.
         """
         os.system("echo $LD_LIBRARY_PATH")
         self.sleep()
+        # Fortran is needed for MG5 to run correctly
+        self.checkFortranInstallation()
         self.checkInstallation()
         import emCreator
-        isIn = emCreator.massesInEmbakedFile ( masses, analyses, self.topo, self.recaster )
+
+        isIn = emCreator.massesInEmbakedFile(masses, analyses, self.topo, self.recaster)
         # print ( f"is the point {masses} for {analyses} in embakedfile? {isIn} rerun: {self.rerun}" )
         # sys.exit()
         if isIn and not self.rerun:
             return
-        if not "adl" in self.recaster and self.locker.hasMA5Files ( masses ) and not self.rerun:
+        if (
+            "adl" not in self.recaster
+            and self.locker.hasMA5Files(masses)
+            and not self.rerun
+        ):
             return
-        if "adl" in self.recaster and self.locker.hasCutlangFiles ( masses ) and not self.rerun:
+        if (
+            "adl" in self.recaster
+            and self.locker.hasCutlangFiles(masses)
+            and not self.rerun
+        ):
             return
-        locked = self.locker.lock ( masses )
+        locked = self.locker.lock(masses)
         if locked:
-            self.info ( "%s[%s] is locked. Skip it" % ( masses, self.topo ) )
-            self.info ( f"If you wish to remove it:\nrm {self.locker.lockfile(masses)}" )
+            self.info("%s[%s] is locked. Skip it" % (masses, self.topo))
+            self.info(f"If you wish to remove it:\nrm {self.locker.lockfile(masses)}")
             return
-        self.process = "%s_%djet" % ( self.topo, self.njets )
-        if self.locker.hasHEPMC ( masses ):
+        self.process = "%s_%djet" % (self.topo, self.njets)
+        if self.locker.hasHEPMC(masses):
             if not self.rerun:
-                which  = self.recaster[0]
-                self.info ( "hepmc file for %s[%s] exists. go directly to %s." % \
-                            ( str(masses), self.topo, which ) )
-                self.runRecasting ( masses, analyses, pid )
-                self.locker.unlock ( masses )
+                which = self.recaster[0]
+                self.info(
+                    "hepmc file for %s[%s] exists. go directly to %s."
+                    % (str(masses), self.topo, which)
+                )
+                self.runRecasting(masses, analyses, pid)
+                self.locker.unlock(masses)
                 return
             else:
-                self.info ( "hepmc file for %s exists, but rerun requested." % str(masses) )
+                self.info(
+                    "hepmc file for %s exists, but rerun requested." % str(masses)
+                )
 
-        if "TRV1" in self.topo and float(masses[0]) >= 450. :
-            self.mgParams["XQCUT"]="M[0]/15"
-        if "TRV1" in self.topo and float(masses[0]) < 450. :
-            self.mgParams["XQCUT"]="30"
-        if "TRS1" in self.topo and float(masses[0]) >= 525. :
-            self.mgParams["XQCUT"]="M[0]/15"
-        if "TRS1" in self.topo and float(masses[0]) < 525. :
-            self.mgParams["XQCUT"]="35"
-        if "ISR" in self.topo and float(masses[0]) <= 25. :
-            self.mgParams["XQCUT"]="15"
-        if "ISR" in self.topo and float(masses[0])  > 25. and float(masses[0]) <= 60.:
-            self.mgParams["XQCUT"]="M[0]/2"
-       
-        self.announce ( "starting MG5 on %s[%s] at %s in job #%s" % (masses, self.topo, time.asctime(), pid ) )
+        if "TRV1" in self.topo and float(masses[0]) >= 450.0:
+            self.mgParams["XQCUT"] = "M[0]/15"
+        if "TRV1" in self.topo and float(masses[0]) < 450.0:
+            self.mgParams["XQCUT"] = "30"
+        if "TRS1" in self.topo and float(masses[0]) >= 525.0:
+            self.mgParams["XQCUT"] = "M[0]/15"
+        if "TRS1" in self.topo and float(masses[0]) < 525.0:
+            self.mgParams["XQCUT"] = "35"
+        if "ISR" in self.topo and float(masses[0]) <= 25.0:
+            self.mgParams["XQCUT"] = "15"
+        if "ISR" in self.topo and float(masses[0]) > 25.0 and float(masses[0]) <= 60.0:
+            self.mgParams["XQCUT"] = "M[0]/2"
+
+        self.announce(
+            "starting MG5 on %s[%s] at %s in job #%s"
+            % (masses, self.topo, time.asctime(), pid)
+        )
         slhaTemplate = f"slha/{self.topo}_template.slha"
-        self.pluginMasses( slhaTemplate, masses )
+        self.pluginMasses(slhaTemplate, masses)
         # first write pythia card
-        self.writePythiaCard ( process=self.process, masses=masses )
+        self.writePythiaCard(process=self.process, masses=masses)
         # then write command file
-        self.writeCommandFile( process=self.process, masses=masses )
+        self.writeCommandFile(process=self.process, masses=masses)
         # then run madgraph5
-        r=self.execute ( self.slhafile, masses )
-        self.unlink ( self.slhafile )
+        r = self.execute(self.slhafile, masses)
+        self.unlink(self.slhafile)
         if r:
-            self.runRecasting ( masses, analyses, pid )
-        self.locker.unlock ( masses )
+            self.runRecasting(masses, analyses, pid)
+        self.locker.unlock(masses)
 
-    def runRecasting ( self, masses, analyses, pid ):
-        """ run the recasting. cutlang or ma5 """
+    def runRecasting(self, masses, analyses, pid):
+        """run the recasting. cutlang or ma5"""
         try:
             if not self.recast:
                 return
             if "adl" in self.recaster:
-                self.runCutlang ( masses, analyses, pid )
+                self.runCutlang(masses, analyses, pid)
             if "cm2" in self.recaster:
-                self.runCheckmate ( masses, analyses, pid )
+                self.runCheckmate(masses, analyses, pid)
             if "colliderbit" in self.recaster:
-                self.runColliderbit ( masses, analyses, pid )
+                self.runColliderbit(masses, analyses, pid)
             if "MA5" in self.recaster:
-                self.runMA5 ( masses, analyses, pid )
+                self.runMA5(masses, analyses, pid)
         except Exception as e:
-            if self.keep: # if keep is on, we remove the lock. seems like were debugging
-                self.locker.unlock ( masses )
+            if (
+                self.keep
+            ):  # if keep is on, we remove the lock. seems like were debugging
+                self.locker.unlock(masses)
             raise e
 
-    def runMA5 ( self, masses, analyses, pid ):
-        """ run ma5, if desired """
-        spid=""
+    def runMA5(self, masses, analyses, pid):
+        """run ma5, if desired"""
+        spid = ""
         if pid != None:
             spid = " in job #%d" % pid
-        self.announce ( "starting MA5 on %s[%s] at %s%s" % ( str(masses), self.topo, time.asctime(), spid ) )
+        self.announce(
+            "starting MA5 on %s[%s] at %s%s"
+            % (str(masses), self.topo, time.asctime(), spid)
+        )
         from ma5Wrapper import MA5Wrapper
-        ma5 = MA5Wrapper ( self.topo, self.njets, self.rerun, analyses, self.keep,
-                           self.sqrts, keephepmc = self.keephepmc )
-        self.debug ( "now call ma5Wrapper" )
-        hepmcfile = self.locker.hepmcFileName ( masses )
-        ma5_runs = ma5.run ( masses, hepmcfile, pid )
+
+        ma5 = MA5Wrapper(
+            self.topo,
+            self.njets,
+            self.rerun,
+            analyses,
+            self.keep,
+            self.sqrts,
+            keephepmc=self.keephepmc,
+        )
+        self.debug("now call ma5Wrapper")
+        hepmcfile = self.locker.hepmcFileName(masses)
+        ma5_runs = ma5.run(masses, hepmcfile, pid)
         ret = ma5_runs["exit_status"]
 
         msg = "finished MG5+MA5"
@@ -413,203 +474,235 @@ class MG5Wrapper:
             msg = "nothing needed to be done"
         if ret < 0:
             msg = "error encountered"
-        self.announce ( "%s for %s[%s] at %s%s" % ( msg, str(masses), self.topo, time.asctime(), spid ) )
+        self.announce(
+            "%s for %s[%s] at %s%s"
+            % (msg, str(masses), self.topo, time.asctime(), spid)
+        )
 
-    def runCutlang ( self, masses, analyses, pid ):
-        """ run cutlang, if desired """
-        spid=""
+    def runCutlang(self, masses, analyses, pid):
+        """run cutlang, if desired"""
+        spid = ""
         if pid != None:
             spid = " in job #%d" % pid
-        self.announce ( "starting cutlang on %s[%s] at %s%s" % ( str(masses), self.topo, time.asctime(), spid ) )
+        self.announce(
+            "starting cutlang on %s[%s] at %s%s"
+            % (str(masses), self.topo, time.asctime(), spid)
+        )
         from cutlangWrapper import CutLangWrapper
+
         rerun = self.rerun
         # rerun = True
         analist = analyses.split(",")
         for ana in analist:
             ana = ana.strip()
-            cl = CutLangWrapper ( self.topo, self.njets, rerun, ana,
-                    auto_confirm = True, keep = self.keep, adl_file = self.adl_file,
-                    event_condition = self.event_condition )
+            cl = CutLangWrapper(
+                self.topo,
+                self.njets,
+                rerun,
+                ana,
+                auto_confirm=True,
+                keep=self.keep,
+                adl_file=self.adl_file,
+                event_condition=self.event_condition,
+            )
             #                   self.sqrts )
-            self.debug ( f"now call cutlangWrapper for {ana}" )
-            hepmcfile = self.locker.hepmcFileName ( masses )
-            ret = cl.run ( masses, hepmcfile, pid )
+            self.debug(f"now call cutlangWrapper for {ana}")
+            hepmcfile = self.locker.hepmcFileName(masses)
+            ret = cl.run(masses, hepmcfile, pid)
             msg = "finished MG5+Cutlang: "
             if ret > 0:
                 msg += "nothing needed to be done"
             if ret < 0:
                 msg += "error encountered"
-            self.announce ( "%s for %s[%s] at %s%s" % ( msg, str(masses), self.topo, time.asctime(), spid ) )
+            self.announce(
+                "%s for %s[%s] at %s%s"
+                % (msg, str(masses), self.topo, time.asctime(), spid)
+            )
 
-    def runCheckmate ( self, masses, analyses, pid ):
-        """ run checkmate, if desired """
-        spid=""
+    def runCheckmate(self, masses, analyses, pid):
+        """run checkmate, if desired"""
+        spid = ""
         if pid != None:
             spid = " in job #%d" % pid
-        self.announce ( "starting checkmate on %s[%s] at %s%s" % ( str(masses), self.topo, time.asctime(), spid ) )
+        self.announce(
+            "starting checkmate on %s[%s] at %s%s"
+            % (str(masses), self.topo, time.asctime(), spid)
+        )
         from cm2Wrapper import CM2Wrapper
+
         rerun = self.rerun
         # rerun = True
         analist = analyses.split(",")
         for ana in analist:
             ana = ana.strip()
-            cl = CM2Wrapper ( self.topo, self.njets, rerun, ana, keep = self.keep )
+            cl = CM2Wrapper(self.topo, self.njets, rerun, ana, keep=self.keep)
             #                   self.sqrts )
-            self.debug ( f"now call cutlangWrapper for {ana}" )
-            hepmcfile = self.locker.hepmcFileName ( masses )
-            ret = cl.run ( masses, hepmcfile, pid )
+            self.debug(f"now call cutlangWrapper for {ana}")
+            hepmcfile = self.locker.hepmcFileName(masses)
+            ret = cl.run(masses, hepmcfile, pid)
             msg = "finished MG5+Checkmate: "
             if ret > 0:
                 msg += "nothing needed to be done"
             if ret < 0:
                 msg += "error encountered"
-            self.announce ( "%s for %s[%s] at %s%s" % ( msg, str(masses), self.topo, time.asctime(), spid ) )
+            self.announce(
+                "%s for %s[%s] at %s%s"
+                % (msg, str(masses), self.topo, time.asctime(), spid)
+            )
 
-    def runColliderbit ( self, masses, analyses, pid ):
-        """ run colliderbit, if desired """
-        spid=""
+    def runColliderbit(self, masses, analyses, pid):
+        """run colliderbit, if desired"""
+        spid = ""
         if pid != None:
             spid = f" in job #{pid}"
-        self.announce ( f"starting colliderbit on {str(masses)}[{self.topo}] at {time.asctime()}{spid}" )
+        self.announce(
+            f"starting colliderbit on {str(masses)}[{self.topo}] at {time.asctime()}{spid}"
+        )
         from gambitWrapper import GambitWrapper
+
         rerun = self.rerun
         # rerun = True
         analist = analyses.split(",")
         for ana in analist:
             ana = ana.strip()
-            cl = GambitWrapper ( self.topo, self.njets, rerun, ana, 
-                                 keep = self.keep )
+            cl = GambitWrapper(self.topo, self.njets, rerun, ana, keep=self.keep)
             cl.nevents = self.nevents
-            self.debug ( f"now call gambitWrapper for {ana}" )
-            hepmcfile = self.locker.hepmcFileName ( masses )
-            ret = cl.run ( masses, hepmcfile, pid )
+            self.debug(f"now call gambitWrapper for {ana}")
+            hepmcfile = self.locker.hepmcFileName(masses)
+            ret = cl.run(masses, hepmcfile, pid)
             msg = "finished MG5+colliderbit: "
             if ret > 0:
                 msg += "nothing needed to be done"
             if ret < 0:
                 msg += "error encountered"
-            self.announce ( f"{msg} for {str(masses)}[{self.topo}] at {time.asctime()}{spid}" )
+            self.announce(
+                f"{msg} for {str(masses)}[{self.topo}] at {time.asctime()}{spid}"
+            )
 
-    def unlink ( self, f ):
-        """ remove a file, if keep is not true """
+    def unlink(self, f):
+        """remove a file, if keep is not true"""
         if self.keep:
             return
         if f == None:
             return
-        if os.path.exists ( f ):
-            subprocess.getoutput ( f"rm -rf {f}" )
+        if os.path.exists(f):
+            subprocess.getoutput(f"rm -rf {f}")
 
-    def exe ( self, cmd, masses="" ):
+    def exe(self, cmd, masses=""):
         sm = ""
         if masses != "":
-            sm=f"[{str(masses)}]"
-        self.msg ( f"exec {self.topo}{sm}:: {cmd[:]}" )
-        pipe = subprocess.Popen ( cmd, shell=True,
-                                  stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE )
-        ret=""
+            sm = f"[{str(masses)}]"
+        self.msg(f"exec {self.topo}{sm}:: {cmd[:]}")
+        pipe = subprocess.Popen(
+            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        ret = ""
         for line in io.TextIOWrapper(pipe.stdout, encoding="latin1"):
-            ret+=line
+            ret += line
         for line in io.TextIOWrapper(pipe.stderr, encoding="latin1"):
-            ret+=line
-        if len(ret)==0:
+            ret += line
+        if len(ret) == 0:
             return
-        maxLength=400
+        maxLength = 400
         # maxLength=100000
-        if len(ret)<maxLength:
-            self.msg ( f" `- {ret}" )
+        if len(ret) < maxLength:
+            self.msg(f" `- {ret}")
             return
         offset = 200
-        self.msg ( f" `- {ret[-maxLength-offset:-offset]} ..." )
+        self.msg(f" `- {ret[-maxLength - offset : -offset]} ...")
 
-    def addJet ( self, lines, njets, f ):
-        """ if 'generate' or 'add process' line, then append n jets to file f """
+    def addJet(self, lines, njets, f):
+        """if 'generate' or 'add process' line, then append n jets to file f"""
         for line in lines:
             if "generate" in line or "add process" in line:
                 line = line.strip()
-                line = line.replace ( "generate ", "add process " )
-                if "$" in line and not " $" in line:
-                   self.error ( "found a line with dollar and no space %s" % line )
-                   self.error ( "please add a space before the dollar" )
-                   sys.exit()
+                line = line.replace("generate ", "add process ")
+                if "$" in line and " $" not in line:
+                    self.error("found a line with dollar and no space %s" % line)
+                    self.error("please add a space before the dollar")
+                    sys.exit()
                 if " $" in line:
-                    line = line.replace(" $"," j"*njets+" $" )
+                    line = line.replace(" $", " j" * njets + " $")
                 # Check if '/' exists in the line
-                if '/' in line:
-                    parts = line.split('/')
+                if "/" in line:
+                    parts = line.split("/")
                     if len(parts) == 2:
-                        line = parts[0] + " j"*njets + " /" + parts[1]
+                        line = parts[0] + " j" * njets + " /" + parts[1]
                     else:
-                        self.error("Invalid line format, found multiple backslashes: %s" % line)
+                        self.error(
+                            "Invalid line format, found multiple backslashes: %s" % line
+                        )
                         sys.exit()
                 else:
-                    line = line + " j"*njets
+                    line = line + " j" * njets
                 line = line + "\n"
-                f.write ( line )
+                f.write(line)
 
-    def mkdir ( self, dirname ) -> bool:
-        """ make directory <dirname>
+    def mkdir(self, dirname) -> bool:
+        """make directory <dirname>
 
         :returns: true, if all went well
         """
-        if not os.path.exists ( dirname ):
+        if not os.path.exists(dirname):
             try:
-                os.mkdir ( dirname )
+                os.mkdir(dirname)
                 return True
-            except FileExistsError as e:
+            except FileExistsError:
                 # can happen if many processses start at once
                 return False
         return False
 
-    def fixPythia8 ( self ):
-        """ fix pythia8, first remove it """
-        path = os.path.join ( self.mg5install, "HEPTools", "pythia8" )
+    def fixPythia8(self):
+        """fix pythia8, first remove it"""
+        path = os.path.join(self.mg5install, "HEPTools", "pythia8")
         cmd = f"rm -rf {path}"
-        o = subprocess.getoutput ( cmd )
-        backup = os.path.join ( self.basedir, "backup", "pythia8" )
-        if not os.path.exists ( backup ):
+        o = subprocess.getoutput(cmd)
+        backup = os.path.join(self.basedir, "backup", "pythia8")
+        if not os.path.exists(backup):
             line = f"pythia8 install broken and no backup available at {backup}"
-            self.error ( line )
-            raise Exception ( line )
+            self.error(line)
+            raise Exception(line)
         cmd = f"cp -r {backup} {path}"
-        o = subprocess.getoutput ( cmd )
+        o = subprocess.getoutput(cmd)
 
-    def checkInstallation ( self ):
-        """ check the mg5 installation, including plugins
+    def checkInstallation(self):
+        """check the mg5 installation, including plugins
         :raises: Exception, if anything is wrong
         :returns: True, if all is ok
         """
-        path = os.path.join ( self.mg5install, "HEPTools", "bin" )
-        pythiaconfig = os.path.join ( path, "pythia8-config" )
+        path = os.path.join(self.mg5install, "HEPTools", "bin")
+        pythiaconfig = os.path.join(path, "pythia8-config")
         # print ( f"[mg5Wrapper] checking in {path}" )
-        if not os.path.exists ( pythiaconfig ):
+        if not os.path.exists(pythiaconfig):
             self.fixPythia8()
-        path = os.path.join ( self.mg5install, "HEPTools", "pythia8", "share", "Pythia8", "xmldoc" )
-        pythiaxml = os.path.join ( path, "Welcome.xml" )
-        if not os.path.exists ( pythiaxml ):
+        path = os.path.join(
+            self.mg5install, "HEPTools", "pythia8", "share", "Pythia8", "xmldoc"
+        )
+        pythiaxml = os.path.join(path, "Welcome.xml")
+        if not os.path.exists(pythiaxml):
             self.fixPythia8()
         cmd = f"{pythiaconfig} --with-hepmc2"
-        o = subprocess.getoutput ( cmd )
+        o = subprocess.getoutput(cmd)
         if o == "false":
-            raise Exception ( f"pythia8 has no hepmc2 support" )
+            raise Exception("pythia8 has no hepmc2 support")
         if False:
             cmd = f"{pythiaconfig} --with-lhapdf6"
-            o = subprocess.getoutput ( cmd )
+            o = subprocess.getoutput(cmd)
             if o == "false":
-                raise Exception ( f"pythia8 has no lhapdf6 support" )
+                raise Exception("pythia8 has no lhapdf6 support")
         return True
 
-    def execute ( self, slhaFile, masses ):
-        templatefile = self.templateDir + '/MG5_Process_Cards/'+self.topo+'.txt'
-        if not os.path.isfile( templatefile ):
-            self.error ( "The process card %s does not exist." % templatefile )
+    def execute(self, slhaFile, masses):
+        templatefile = self.templateDir + "/MG5_Process_Cards/" + self.topo + ".txt"
+        if not os.path.isfile(templatefile):
+            self.error("The process card %s does not exist." % templatefile)
             sys.exit()
-        f=open(templatefile,"r")
-        lines=f.readlines()
+        f = open(templatefile, "r")
+        lines = f.readlines()
         f.close()
-        self.tempf = tempfile.mktemp(prefix="mg5proc",dir=self.tempdir )
-        f=open(self.tempf,"w")
-        f.write ( "set auto_convert_model T\n" )
+        self.tempf = tempfile.mktemp(prefix="mg5proc", dir=self.tempdir)
+        f = open(self.tempf, "w")
+        f.write("set auto_convert_model T\n")
         """
         #if self.topo == "TChiQ":
         #    f.write ( "import model MSSM_SLHA2-full --modelname\n" )
@@ -629,93 +722,105 @@ class MG5Wrapper:
             f.write ( "import model_v4 mssm\n" )
         """
         for line in lines:
-            f.write ( line )
-        for i in [ 1, 2, 3 ]:
+            f.write(line)
+        for i in [1, 2, 3]:
             if self.njets >= i:
-                self.addJet ( lines, i, f )
+                self.addJet(lines, i, f)
 
-        Dir = bakeryHelpers.dirName ( self.process, masses )
-        f.write ( "output %s\n" % Dir )
+        Dir = bakeryHelpers.dirName(self.process, masses)
+        f.write("output %s\n" % Dir)
         f.close()
-        self.info ( "run mg5 for %s[%s]: %s" % ( masses, self.topo, self.tempf ) )
-        self.logfile = tempfile.mktemp ()
-        if os.path.exists ( Dir ):
-            subprocess.getoutput ( f"rm -rf {Dir}" )
-        r = self.mkdir ( Dir )
+        self.info("run mg5 for %s[%s]: %s" % (masses, self.topo, self.tempf))
+        self.logfile = tempfile.mktemp()
+        if os.path.exists(Dir):
+            subprocess.getoutput(f"rm -rf {Dir}")
+        r = self.mkdir(Dir)
         if r == False:
-            self.error ( f"{Dir} already exists! Skipping!" )
+            self.error(f"{Dir} already exists! Skipping!")
             return False
 
         if self.keep:
-            self.mkdir ( "keep/" )
-            shutil.copy ( self.tempf, "keep/" + Dir + "mg5proc" )
-        shutil.move ( self.tempf, Dir + "/mg5proc" )
-        cmd = "python%d %s %s/mg5proc 2>&1 | tee %s" % \
-              ( self.pyver, self.executable, Dir, self.logfile )
-        self.exe ( cmd, masses )
+            self.mkdir("keep/")
+            shutil.copy(self.tempf, "keep/" + Dir + "mg5proc")
+        shutil.move(self.tempf, Dir + "/mg5proc")
+        cmd = "python%d %s %s/mg5proc 2>&1 | tee %s" % (
+            self.pyver,
+            self.executable,
+            Dir,
+            self.logfile,
+        )
+        self.exe(cmd, masses)
         ## copy slha file
-        if not os.path.exists ( Dir+"/Cards" ):
+        if not os.path.exists(Dir + "/Cards"):
             cmd = f"rm -rf {Dir}"
-            o = subprocess.getoutput ( cmd )
-            o = subprocess.getoutput ( f"cat {self.logfile}" )
-            self.error ( f"{Dir}/Cards does not exist! Skipping! {o}" )
-            self.exe ( cmd, masses )
+            o = subprocess.getoutput(cmd)
+            o = subprocess.getoutput(f"cat {self.logfile}")
+            self.error(f"{Dir}/Cards does not exist! Skipping! {o}")
+            self.exe(cmd, masses)
             return False
-        with open ( f"{Dir}/analysis", "wt" ) as f:
+        with open(f"{Dir}/analysis", "wt") as f:
             # pen down the analysis name
-            ana = self.args["analyses"].upper().replace("_","-")
-            f.write ( ana+"\n" )
+            ana = self.args["analyses"].upper().replace("_", "-")
+            f.write(ana + "\n")
             f.close()
         if "bias" in self.topo:
-            shutil.copy("templates/pythia8_card_match.dat", Dir+'/Cards/pythia8_card.dat')
-        shutil.move(slhaFile, Dir+'/Cards/param_card.dat' )
-        shutil.move(self.runcard, Dir+'/Cards/run_card.dat' )
-        shutil.move(self.commandfile, Dir+"/mg5cmd" )
-        if (os.path.isdir(Dir+'/Events/run_01')):
-            shutil.rmtree(Dir+'/Events/run_01')
-        self.logfile2 = tempfile.mktemp ()
+            shutil.copy(
+                "templates/pythia8_card_match.dat", Dir + "/Cards/pythia8_card.dat"
+            )
+        shutil.move(slhaFile, Dir + "/Cards/param_card.dat")
+        shutil.move(self.runcard, Dir + "/Cards/run_card.dat")
+        shutil.move(self.commandfile, Dir + "/mg5cmd")
+        if os.path.isdir(Dir + "/Events/run_01"):
+            shutil.rmtree(Dir + "/Events/run_01")
+        self.logfile2 = tempfile.mktemp()
         cmd = f"python{self.pyver} {self.executable} {Dir}/mg5cmd 2>&1 | tee {self.logfile2}"
-        self.exe ( cmd, masses )
-        hepmcfile = self.orighepmcFileName( masses )
-        if self.hasorigHEPMC ( masses ):
-            dest = self.locker.hepmcFileName ( masses )
-            self.msg ( "moving", hepmcfile, "to", dest )
-            shutil.move ( hepmcfile, dest )
+        self.exe(cmd, masses)
+        hepmcfile = self.orighepmcFileName(masses)
+        if self.hasorigHEPMC(masses):
+            dest = self.locker.hepmcFileName(masses)
+            self.msg("moving", hepmcfile, "to", dest)
+            shutil.move(hepmcfile, dest)
         else:
-            self.error ( f"could not find orig hepmc file {self.orighepmcFileName( masses )}! maybe there is something wrong with the mg5 installation?" )
-        self.clean( Dir )
+            self.error(
+                f"could not find orig hepmc file {self.orighepmcFileName(masses)}! maybe there is something wrong with the mg5 installation?"
+            )
+        self.clean(Dir)
         return True
 
-    def clean ( self, Dir=None ):
-        """ clean up temporary files
+    def clean(self, Dir=None):
+        """clean up temporary files
         :param Dir: if given, then assume its the runtime directory, and remove "Source", "lib", "SubProcesses" and other subdirs
         """
         if self.keep:
             return
-        self.info ( "cleaning up %s, %s, %s, %s" % \
-                ( self.commandfile, self.tempf, self.logfile, self.logfile2 ) )
-        self.unlink ( ".lock*" )
-        #self.unlink ( self.commandfile )
-        #self.unlink ( self.tempf )
-        self.unlink ( self.logfile )
-        self.unlink ( self.logfile2 )
+        self.info(
+            "cleaning up %s, %s, %s, %s"
+            % (self.commandfile, self.tempf, self.logfile, self.logfile2)
+        )
+        self.unlink(".lock*")
+        # self.unlink ( self.commandfile )
+        # self.unlink ( self.tempf )
+        self.unlink(self.logfile)
+        self.unlink(self.logfile2)
         if Dir != None:
             cmd = "rm -rf %s" % Dir
-            o = subprocess.getoutput ( cmd )
-            self.info ( "clean up %s: %s" % ( cmd, o ) )
+            o = subprocess.getoutput(cmd)
+            self.info("clean up %s: %s" % (cmd, o))
 
-    def orighepmcFileName ( self, masses ):
-        """ return the hepmc file name *before* moving """
-        hepmcfile = bakeryHelpers.dirName( self.process,masses)+\
-                            "/Events/run_01/tag_1_pythia8_events.hepmc.gz"
+    def orighepmcFileName(self, masses):
+        """return the hepmc file name *before* moving"""
+        hepmcfile = (
+            bakeryHelpers.dirName(self.process, masses)
+            + "/Events/run_01/tag_1_pythia8_events.hepmc.gz"
+        )
         return hepmcfile
 
-    def hasorigHEPMC ( self, masses ):
-        """ does it have a valid HEPMC file? if yes, then skip the point """
-        hepmcfile = self.orighepmcFileName( masses )
-        if not os.path.exists ( hepmcfile ):
+    def hasorigHEPMC(self, masses):
+        """does it have a valid HEPMC file? if yes, then skip the point"""
+        hepmcfile = self.orighepmcFileName(masses)
+        if not os.path.exists(hepmcfile):
             return False
-        if os.stat ( hepmcfile ).st_size < 100:
+        if os.stat(hepmcfile).st_size < 100:
             ## too small to be real
             return False
         return True
@@ -723,98 +828,201 @@ class MG5Wrapper:
 
 def main():
     import argparse
-    argparser = argparse.ArgumentParser(description='madgraph5 runner.')
-    argparser.add_argument ( '-n', '--nevents', help='number of events to generate [10000]',
-                             type=int, default=10000 )
-    argparser.add_argument ( '-j', '--njets', help='number of ISR jets [1]',
-                             type=int, default=1 )
-    argparser.add_argument ( '--sqrts', help='sqrts [13]',
-                             type=int, default=13 )
-    argparser.add_argument ( '-p', '--nprocesses', help='number of process to run in parallel. 0 means 1 per CPU [1]',
-                             type=int, default=1 )
-    argparser.add_argument ( '-T', '--topo', help='topology [T2]',
-                             type=str, default="T2" )
-    argparser.add_argument ( '-k', '--keep', help='keep temporary files',
-                             action="store_true" )
-    argparser.add_argument ( '-K', '--keephepmc', help='keep hepmc files',
-                             action="store_true" )
-    argparser.add_argument ( '--show', help='show production stats',
-                             action="store_true" )
-    argparser.add_argument ( '-a', '--recast', help='run also recasting after producing the events',
-                             action="store_true" )
-    argparser.add_argument ( '-c', '--clean', help='clean all temporary files, then quit',
-                             action="store_true" )
-    argparser.add_argument ( '-b', '--bake', help='call emCreator, bake .embaked files',
-                             action="store_true" )
-    argparser.add_argument ( '-C', '--clean_all', help='clean all temporary files, even Tx directories, then quit',
-                             action="store_true" )
-    argparser.add_argument ( '--cutlang', help='use cutlang instead of MA5',
-                             action="store_true" )
-    argparser.add_argument ( '--checkmate', help='use checkmate instead of MA5',
-                             action="store_true" )
-    argparser.add_argument ( '--colliderbit', help='use colliderbit instead of MA5',
-                             action="store_true" )
-    argparser.add_argument ( '--adl_file', help='specify the name of the adl description to be used [if not specified, try to guess]',
-                             type=str, default=None )
-    argparser.add_argument ( '--event_condition', help='specify conditions on the events, filter out the rest, e.g. {"higgs":1}: one and only one higgs [None]',
-                             type=str, default=None )
-    argparser.add_argument ( '--copy', help='copy embaked file to smodels-database',
-                             action="store_true" )
-    argparser.add_argument ( '-l', '--list_analyses', help='print a list of MA5 analyses, then quit',
-                             action="store_true" )
+
+    argparser = argparse.ArgumentParser(description="madgraph5 runner.")
+    argparser.add_argument(
+        "-n",
+        "--nevents",
+        help="number of events to generate [10000]",
+        type=int,
+        default=10000,
+    )
+    argparser.add_argument(
+        "-j", "--njets", help="number of ISR jets [1]", type=int, default=1
+    )
+    argparser.add_argument("--sqrts", help="sqrts [13]", type=int, default=13)
+    argparser.add_argument(
+        "-p",
+        "--nprocesses",
+        help="number of process to run in parallel. 0 means 1 per CPU [1]",
+        type=int,
+        default=1,
+    )
+    argparser.add_argument("-T", "--topo", help="topology [T2]", type=str, default="T2")
+    argparser.add_argument(
+        "-k", "--keep", help="keep temporary files", action="store_true"
+    )
+    argparser.add_argument(
+        "-K", "--keephepmc", help="keep hepmc files", action="store_true"
+    )
+    argparser.add_argument("--show", help="show production stats", action="store_true")
+    argparser.add_argument(
+        "-a",
+        "--recast",
+        help="run also recasting after producing the events",
+        action="store_true",
+    )
+    argparser.add_argument(
+        "-c",
+        "--clean",
+        help="clean all temporary files, then quit",
+        action="store_true",
+    )
+    argparser.add_argument(
+        "-b", "--bake", help="call emCreator, bake .embaked files", action="store_true"
+    )
+    argparser.add_argument(
+        "-C",
+        "--clean_all",
+        help="clean all temporary files, even Tx directories, then quit",
+        action="store_true",
+    )
+    argparser.add_argument(
+        "--cutlang", help="use cutlang instead of MA5", action="store_true"
+    )
+    argparser.add_argument(
+        "--checkmate", help="use checkmate instead of MA5", action="store_true"
+    )
+    argparser.add_argument(
+        "--colliderbit", help="use colliderbit instead of MA5", action="store_true"
+    )
+    argparser.add_argument(
+        "--adl_file",
+        help="specify the name of the adl description to be used [if not specified, try to guess]",
+        type=str,
+        default=None,
+    )
+    argparser.add_argument(
+        "--event_condition",
+        help='specify conditions on the events, filter out the rest, e.g. {"higgs":1}: one and only one higgs [None]',
+        type=str,
+        default=None,
+    )
+    argparser.add_argument(
+        "--copy", help="copy embaked file to smodels-database", action="store_true"
+    )
+    argparser.add_argument(
+        "-l",
+        "--list_analyses",
+        help="print a list of MA5 analyses, then quit",
+        action="store_true",
+    )
     anadef = "atlas_susy_2016_07"
     anadef = "cms_sus_19_006"
-    argparser.add_argument ( '--analyses', help='analyses, comma separated [%s]' % anadef,
-                             type=str, default=anadef )
-    argparser.add_argument ( '--maxgap2', help='maximum mass gap between second and third, to force offshell [None]',
-                             type=float, default=None )
-    argparser.add_argument ( '--mingap1', help='minimum mass gap between first and second, to force onshell or a mass hierarchy [None]',
-                             type=float, default=None )
-    argparser.add_argument ( '--mingap2', help='minimum mass gap between second and third, to force onshell or a mass hierarchy [None]',
-                             type=float, default=None )
-    argparser.add_argument ( '--mingap13', help='minimum mass gap between first and third, to force onshell or a mass hierarchy [None]',
-                             type=float, default=None )
-    argparser.add_argument ( '--maxgap13', help='maximum mass gap between first and third, to force offshell [None]',
-                             type=float, default=None )
-    argparser.add_argument ( '--maxgap1', help='maximum mass gap between first and second, to force offshell [None]',
-                             type=float, default=None )
-    argparser.add_argument ( '-r', '--rerun', help='force rerun, even if there is a summary file already',
-                             action="store_true" )
-    argparser.add_argument ( '--dry_run', help='dry run, just print out the mass points',
-                             action="store_true" )
-    argparser.add_argument ( '--ignore_locks', help='ignore any locks. for debugging only.',
-                             action="store_true" )
-    #mdefault = "(2000,1000,10),(2000,1000,10)"
+    argparser.add_argument(
+        "--analyses",
+        help="analyses, comma separated [%s]" % anadef,
+        type=str,
+        default=anadef,
+    )
+    argparser.add_argument(
+        "--maxgap2",
+        help="maximum mass gap between second and third, to force offshell [None]",
+        type=float,
+        default=None,
+    )
+    argparser.add_argument(
+        "--mingap1",
+        help="minimum mass gap between first and second, to force onshell or a mass hierarchy [None]",
+        type=float,
+        default=None,
+    )
+    argparser.add_argument(
+        "--mingap2",
+        help="minimum mass gap between second and third, to force onshell or a mass hierarchy [None]",
+        type=float,
+        default=None,
+    )
+    argparser.add_argument(
+        "--mingap13",
+        help="minimum mass gap between first and third, to force onshell or a mass hierarchy [None]",
+        type=float,
+        default=None,
+    )
+    argparser.add_argument(
+        "--maxgap13",
+        help="maximum mass gap between first and third, to force offshell [None]",
+        type=float,
+        default=None,
+    )
+    argparser.add_argument(
+        "--maxgap1",
+        help="maximum mass gap between first and second, to force offshell [None]",
+        type=float,
+        default=None,
+    )
+    argparser.add_argument(
+        "-r",
+        "--rerun",
+        help="force rerun, even if there is a summary file already",
+        action="store_true",
+    )
+    argparser.add_argument(
+        "--dry_run", help="dry run, just print out the mass points", action="store_true"
+    )
+    argparser.add_argument(
+        "--ignore_locks",
+        help="ignore any locks. for debugging only.",
+        action="store_true",
+    )
+    # mdefault = "(2000,1000,10),(2000,1000,10)"
     mdefault = "(1000,2000,50),'half',(1000,2000,50)"
-    argparser.add_argument ( '-m', '--masses', help='mass ranges, comma separated list of tuples. One tuple gives the range for one mass parameter, as (m_lowest, m_highest, delta_m). m_highest and delta_m may be omitted. Keywords "half" and "same" (add quotes) are accepted for intermediate masses. [%s]' % mdefault,
-                             type=str, default=mdefault )
+    argparser.add_argument(
+        "-m",
+        "--masses",
+        help='mass ranges, comma separated list of tuples. One tuple gives the range for one mass parameter, as (m_lowest, m_highest, delta_m). m_highest and delta_m may be omitted. Keywords "half" and "same" (add quotes) are accepted for intermediate masses. [%s]'
+        % mdefault,
+        type=str,
+        default=mdefault,
+    )
     args = argparser.parse_args()
-    if "bias" in args.topo and args.njets>0:
-        print ( f"{ansi.RED}[mg5Wrapper] topo {args.topo} seems a biased one but njets not equal zero?!  {ansi.RESET}" )
+    if "bias" in args.topo and args.njets > 0:
+        print(
+            f"{ansi.RED}[mg5Wrapper] topo {args.topo} seems a biased one but njets not equal zero?!  {ansi.RESET}"
+        )
         sys.exit()
-    if args.topo in [ "T1", "T2", "T1bbbb", "T2bb", "T2ttoff", "T1ttttoff" ] and args.mingap1 == None and not args.list_analyses and not args.clean and not args.clean_all:
+    if (
+        args.topo in ["T1", "T2", "T1bbbb", "T2bb", "T2ttoff", "T1ttttoff"]
+        and args.mingap1 == None
+        and not args.list_analyses
+        and not args.clean
+        and not args.clean_all
+    ):
         if "(" in args.masses:
-            print ( f"[mg5Wrapper] for topo {args.topo} we set mingap1 to 1." )
-        args.mingap1 = 1.
-    if args.topo in [ "T1tttt", "T2tt" ] and args.mingap1 == None and not args.list_analyses and not args.clean and not args.clean_all:
+            print(f"[mg5Wrapper] for topo {args.topo} we set mingap1 to 1.")
+        args.mingap1 = 1.0
+    if (
+        args.topo in ["T1tttt", "T2tt"]
+        and args.mingap1 == None
+        and not args.list_analyses
+        and not args.clean
+        and not args.clean_all
+    ):
         if "(" in args.masses:
-            print ( f"[mg5Wrapper] for topo {args.topo} we set mingap1 to 1." )
-        ## also for these we set to 1. because usually this is also used for offshell
-            print ( f"[mg5Wrapper] for topo {args.topo} we set mingap1 to 1." )
-        args.mingap1 = 1. # 170.
-    if args.topo in [ "T1ttttoff", "T2ttoff" ] and args.maxgap1 == None and not args.list_analyses and not args.clean and not args.clean_all:
+            print(f"[mg5Wrapper] for topo {args.topo} we set mingap1 to 1.")
+            ## also for these we set to 1. because usually this is also used for offshell
+            print(f"[mg5Wrapper] for topo {args.topo} we set mingap1 to 1.")
+        args.mingap1 = 1.0  # 170.
+    if (
+        args.topo in ["T1ttttoff", "T2ttoff"]
+        and args.maxgap1 == None
+        and not args.list_analyses
+        and not args.clean
+        and not args.clean_all
+    ):
         if "(" in args.masses:
-            print ( f"[mg5Wrapper] for topo {args.topo} we set maxgap1 to 180." )
-        args.maxgap1 = 180.
+            print(f"[mg5Wrapper] for topo {args.topo} we set maxgap1 to 180.")
+        args.maxgap1 = 180.0
     if args.list_analyses:
-        bakeryHelpers.listAnalyses( args.cutlang, args.checkmate, args.colliderbit )
+        bakeryHelpers.listAnalyses(args.cutlang, args.checkmate, args.colliderbit)
         sys.exit()
     if args.show:
         import printProdStats
+
         anas = args.analyses.split(",")
         for ana in anas:
-            ana = bakeryHelpers.ma5AnaNameToSModelSName ( ana )
-            printProdStats.main( ana )
+            ana = bakeryHelpers.ma5AnaNameToSModelSName(ana)
+            printProdStats.main(ana)
         sys.exit()
 
     if args.clean_all:
@@ -826,40 +1034,45 @@ def main():
         sys.exit()
 
     hname = socket.gethostname()
-    if hname.find(".")>0:
-        hname=hname[:hname.find(".")]
+    if hname.find(".") > 0:
+        hname = hname[: hname.find(".")]
     logfile = "baking.log"
     lastline = None
-    if os.path.exists ( logfile ):
-        f=open( logfile,"rt")
+    if os.path.exists(logfile):
+        f = open(logfile, "rt")
         lines = f.readlines()
         f.close()
-        if len(lines)>0:
+        if len(lines) > 0:
             lastline = lines[-1].strip()
     cmd = ""
-    for i,a in enumerate(sys.argv):
-        if i>0 and sys.argv[i-1] in [ "-m", "--masses" ]:
-            a='"%s"' % a
-        if i>0 and sys.argv[i-1] in [ "--analyses" ]:
-            a='"%s"' % a
+    for i, a in enumerate(sys.argv):
+        if i > 0 and sys.argv[i - 1] in ["-m", "--masses"]:
+            a = '"%s"' % a
+        if i > 0 and sys.argv[i - 1] in ["--analyses"]:
+            a = '"%s"' % a
         cmd += a + " "
     cmd = cmd[:-1]
     if lastline == None or lastline != cmd:
-        with open(logfile,"a") as f:
-            f.write ( f"[{hname}] {time.asctime()}:\n{cmd}\n" )
-    nReqM = bakeryHelpers.nRequiredMasses ( args.topo )
-    keepOrder=True
+        with open(logfile, "a") as f:
+            f.write(f"[{hname}] {time.asctime()}:\n{cmd}\n")
+    nReqM = bakeryHelpers.nRequiredMasses(args.topo)
+    keepOrder = True
     if args.topo == "TGQ":
-        keepOrder=False
-    masses = bakeryHelpers.parseMasses ( args.masses,
-                                         mingap1=args.mingap1, maxgap1=args.maxgap1,
-                                         mingap2=args.mingap2, maxgap2=args.maxgap2,
-                                         mingap13=args.mingap13, maxgap13=args.maxgap13 )
+        keepOrder = False
+    masses = bakeryHelpers.parseMasses(
+        args.masses,
+        mingap1=args.mingap1,
+        maxgap1=args.maxgap1,
+        mingap2=args.mingap2,
+        maxgap2=args.maxgap2,
+        mingap13=args.mingap13,
+        maxgap13=args.maxgap13,
+    )
     if args.dry_run:
-        print ( f"[mg5Wrapper] masses: {masses}" )
+        print(f"[mg5Wrapper] masses: {masses}")
         sys.exit()
-    import random
-    random.shuffle ( masses )
+
+    random.shuffle(masses)
     nm = len(masses)
     if nm == 0:
         line = "[mg5Wrapper] no masses found within the constraints:"
@@ -869,62 +1082,83 @@ def main():
             line += f" gap(1,3) not in [{args.mingap13},{args.maxgap13 if args.maxgap13 is not None else '+inf'}];"
         if args.mingap2 != None or args.maxgap2 != None:
             line += f" gap(2,3) not in [{args.mingap2},{args.maxgap2 if args.maxgap2 is not None else '+inf'}];"
-        print ( f"{line}" )
-        locker.Locker( args.sqrts, args.topo, args.ignore_locks ).unlock ( masses )
+        print(f"{line}")
+        locker.Locker(args.sqrts, args.topo, args.ignore_locks).unlock(masses)
         sys.exit()
     if nReqM != len(masses[0]):
-        print ( "[mg5Wrapper] you gave %d masses, but %d are required for %s." % \
-                ( len(masses[0]), nReqM, args.topo ) )
+        print(
+            "[mg5Wrapper] you gave %d masses, but %d are required for %s."
+            % (len(masses[0]), nReqM, args.topo)
+        )
         sys.exit()
-    nprocesses = bakeryHelpers.nJobs ( args.nprocesses, nm )
-    recaster = [ "MA5" ]
+    nprocesses = bakeryHelpers.nJobs(args.nprocesses, nm)
+    recaster = ["MA5"]
     if args.cutlang or args.checkmate or args.colliderbit:
-        recaster = [ "adl" ]
+        recaster = ["adl"]
         if args.checkmate:
-            recaster = [ "cm2" ]
+            recaster = ["cm2"]
         if args.colliderbit:
-            recaster = [ "colliderbit" ]
+            recaster = ["colliderbit"]
         args.recast = True
     if args.checkmate and args.cutlang:
-        print ( "[mg5Wrapper] both checkmate and cutlang have been asked for. please choose!" )
+        print(
+            "[mg5Wrapper] both checkmate and cutlang have been asked for. please choose!"
+        )
         sys.exit()
     if args.checkmate and args.colliderbit:
-        print ( "[mg5Wrapper] both checkmate and colliderbit have been asked for. please choose!" )
+        print(
+            "[mg5Wrapper] both checkmate and colliderbit have been asked for. please choose!"
+        )
         sys.exit()
     if args.cutlang and args.colliderbit:
-        print ( "[mg5Wrapper] both cutlang and colliderbit have been asked for. please choose!" )
+        print(
+            "[mg5Wrapper] both cutlang and colliderbit have been asked for. please choose!"
+        )
         sys.exit()
 
-    mg5 = MG5Wrapper( vars(args), recaster )
+    mg5 = MG5Wrapper(vars(args), recaster)
     # mg5.info( "%d points to produce, in %d processes" % (nm,nprocesses) )
-    djobs = int(len(masses)/nprocesses)
+    djobs = int(len(masses) / nprocesses)
 
-    def runChunk ( chunk, pid ):
+    def runChunk(chunk, pid):
         for c in chunk:
-            mg5.run ( c, args.analyses, pid )
-        print ( "%s[runChunk] finished chunk #%d%s" % \
-                ( ansi.GREEN, pid, ansi.RESET ) )
+            mg5.run(c, args.analyses, pid)
+        print("%s[runChunk] finished chunk #%d%s" % (ansi.GREEN, pid, ansi.RESET))
 
-    jobs=[]
+    jobs = []
     for i in range(nprocesses):
-        chunk = masses[djobs*i:djobs*(i+1)]
-        if i == nprocesses-1:
-            chunk = masses[djobs*i:]
-        p = multiprocessing.Process(target=runChunk, args=(chunk,i))
-        jobs.append ( p )
+        chunk = masses[djobs * i : djobs * (i + 1)]
+        if i == nprocesses - 1:
+            chunk = masses[djobs * i :]
+        p = multiprocessing.Process(target=runChunk, args=(chunk, i))
+        jobs.append(p)
         p.start()
     for j in jobs:
         j.join()
     if args.bake:
         import emCreator
         from types import SimpleNamespace
+
         # analyses = "atlas_susy_2016_07"
         analyses = args.analyses
-        args = SimpleNamespace ( masses="all", topo=args.topo, njets=args.njets, \
-                analyses = analyses, copy=args.copy, keep=args.keep, sqrts=args.sqrts,
-                verbose=False, ma5=not args.cutlang, cutlang=args.cutlang, stats=True,
-                cleanup = False, checkmate=args.checkmate, colliderbit = args.colliderbit )
-        emCreator.run ( args )
+        args = SimpleNamespace(
+            masses="all",
+            topo=args.topo,
+            njets=args.njets,
+            analyses=analyses,
+            copy=args.copy,
+            keep=args.keep,
+            sqrts=args.sqrts,
+            verbose=False,
+            ma5=not args.cutlang,
+            cutlang=args.cutlang,
+            stats=True,
+            cleanup=False,
+            checkmate=args.checkmate,
+            colliderbit=args.colliderbit,
+        )
+        emCreator.run(args)
+
 
 def main_via_ini():
     import sys
@@ -933,10 +1167,10 @@ def main_via_ini():
     from types import SimpleNamespace
 
     class ansi:
-        RED = '\033[91m'
-        GREEN = '\033[92m'
-        YELLOW = '\033[93m'
-        RESET = '\033[0m'
+        RED = "\033[91m"
+        GREEN = "\033[92m"
+        YELLOW = "\033[93m"
+        RESET = "\033[0m"
 
     parser = argparse.ArgumentParser(description="Read emcreator config")
     parser.add_argument("--config", type=str, help="")
@@ -951,31 +1185,31 @@ def main_via_ini():
             config_flat_dict[short_key] = config_full_dict[key]
 
     defaults = {
-        "nevents"           : 10000,
-        "njets"             : 1,
-        "nprocesses"        : 1,
-        "mingap1"           : None,
-        "mingap2"           : None,
-        "maxgap1"           : None,
-        "maxgap2"           : None,
-        "mingap13"          : None,
-        "maxgap13"          : None,
-        "list_analyses"     : False,
-        "clean"             : False,
-        "clean_all"         : False,
-        "adl_file"          : None,
-        "event_condition"   : None,
-        "sqrts"             :13.0,
-        "ignore_locks"      :None,
-        "keephepmc"         :None,
-        "rerun"             :None,
-        "dry_run"           :None,
-        "cutlang"           :None,
-        "checkmate"         :None,
-        "colliderbit"       :None,
-        "copy"              :None,
-        "recaster"          :None,
-        "recast"            :None,
+        "nevents": 10000,
+        "njets": 1,
+        "nprocesses": 1,
+        "mingap1": None,
+        "mingap2": None,
+        "maxgap1": None,
+        "maxgap2": None,
+        "mingap13": None,
+        "maxgap13": None,
+        "list_analyses": False,
+        "clean": False,
+        "clean_all": False,
+        "adl_file": None,
+        "event_condition": None,
+        "sqrts": 13.0,
+        "ignore_locks": None,
+        "keephepmc": None,
+        "rerun": None,
+        "dry_run": None,
+        "cutlang": None,
+        "checkmate": None,
+        "colliderbit": None,
+        "copy": None,
+        "recaster": None,
+        "recast": None,
     }
 
     ns = SimpleNamespace()
@@ -985,62 +1219,86 @@ def main_via_ini():
 
     for key, value in config_flat_dict.items():
         setattr(ns, key, value)
-        
 
     if "bias" in ns.topo and ns.njets > 0:
-        print(f"{ansi.RED}[mg5Wrapper] topo {ns.topo} seems a biased one but njets not equal zero?!{ansi.RESET}")
+        print(
+            f"{ansi.RED}[mg5Wrapper] topo {ns.topo} seems a biased one but njets not equal zero?!{ansi.RESET}"
+        )
         sys.exit()
 
-    if ns.topo in ["T1", "T2", "T1bbbb", "T2bb", "T2ttoff", "T1ttttoff"] and ns.mingap1 is None and not ns.list_analyses and not ns.clean and not ns.clean_all:
+    if (
+        ns.topo in ["T1", "T2", "T1bbbb", "T2bb", "T2ttoff", "T1ttttoff"]
+        and ns.mingap1 is None
+        and not ns.list_analyses
+        and not ns.clean
+        and not ns.clean_all
+    ):
         if "(" in ns.mass:
             print(f"[mg5Wrapper] for topo {ns.topo} we set mingap1 to 1.")
-        ns.mingap1 = 1.
+        ns.mingap1 = 1.0
 
-    if ns.topo in ["T1tttt", "T2tt"] and ns.mingap1 is None and not ns.list_analyses and not ns.clean and not ns.clean_all:
+    if (
+        ns.topo in ["T1tttt", "T2tt"]
+        and ns.mingap1 is None
+        and not ns.list_analyses
+        and not ns.clean
+        and not ns.clean_all
+    ):
         if "(" in ns.mass:
             print(f"[mg5Wrapper] for topo {ns.topo} we set mingap1 to 1.")
-        ns.mingap1 = 1.
+        ns.mingap1 = 1.0
 
-    if ns.topo in ["T1ttttoff", "T2ttoff"] and ns.maxgap1 is None and not ns.list_analyses and not ns.clean and not ns.clean_all:
+    if (
+        ns.topo in ["T1ttttoff", "T2ttoff"]
+        and ns.maxgap1 is None
+        and not ns.list_analyses
+        and not ns.clean
+        and not ns.clean_all
+    ):
         if "(" in ns.mass:
             print(f"[mg5Wrapper] for topo {ns.topo} we set maxgap1 to 180.")
-        ns.maxgap1 = 180.
-    
+        ns.maxgap1 = 180.0
+
     hname = socket.gethostname()
-    if hname.find(".")>0:
-        hname=hname[:hname.find(".")]
+    if hname.find(".") > 0:
+        hname = hname[: hname.find(".")]
     logfile = "baking.log"
     lastline = None
-    if os.path.exists ( logfile ):
-        f=open( logfile,"rt")
+    if os.path.exists(logfile):
+        f = open(logfile, "rt")
         lines = f.readlines()
         f.close()
-        if len(lines)>0:
+        if len(lines) > 0:
             lastline = lines[-1].strip()
     cmd = ""
-    for i,a in enumerate(sys.argv):
-        if i>0 and sys.argv[i-1] in [ "-m", "--masses" ]:
-            a='"%s"' % a
-        if i>0 and sys.argv[i-1] in [ "--analyses" ]:
-            a='"%s"' % a
+    for i, a in enumerate(sys.argv):
+        if i > 0 and sys.argv[i - 1] in ["-m", "--masses"]:
+            a = '"%s"' % a
+        if i > 0 and sys.argv[i - 1] in ["--analyses"]:
+            a = '"%s"' % a
         cmd += a + " "
     cmd = cmd[:-1]
     if lastline == None or lastline != cmd:
-        with open(logfile,"a") as f:
-            f.write ( f"[{hname}] {time.asctime()}:\n{cmd}\n" )
-    nReqM = bakeryHelpers.nRequiredMasses ( ns.topo )
-    keepOrder=True
+        with open(logfile, "a") as f:
+            f.write(f"[{hname}] {time.asctime()}:\n{cmd}\n")
+    nReqM = bakeryHelpers.nRequiredMasses(ns.topo)
+    keepOrder = True
     if ns.topo == "TGQ":
-        keepOrder=False
-    masses = bakeryHelpers.parseMasses ( ns.mass,
-                                         mingap1=ns.mingap1, maxgap1=ns.maxgap1,
-                                         mingap2=ns.mingap2, maxgap2=ns.maxgap2,
-                                         mingap13=ns.mingap13, maxgap13=ns.maxgap13 )
+        keepOrder = False
+    masses = bakeryHelpers.parseMasses(
+        ns.mass,
+        mingap1=ns.mingap1,
+        maxgap1=ns.maxgap1,
+        mingap2=ns.mingap2,
+        maxgap2=ns.maxgap2,
+        mingap13=ns.mingap13,
+        maxgap13=ns.maxgap13,
+    )
     if ns.dry_run:
-        print ( f"[mg5Wrapper] masses: {masses}" )
+        print(f"[mg5Wrapper] masses: {masses}")
         sys.exit()
-    import random
-    random.shuffle ( masses )
+
+    random.shuffle(masses)
     nm = len(masses)
     if nm == 0:
         line = "[mg5Wrapper] no masses found within the constraints:"
@@ -1050,63 +1308,84 @@ def main_via_ini():
             line += f" gap(1,3) not in [{ns.mingap13},{ns.maxgap13 if ns.maxgap13 is not None else '+inf'}];"
         if ns.mingap2 != None or ns.maxgap2 != None:
             line += f" gap(2,3) not in [{ns.mingap2},{ns.maxgap2 if ns.maxgap2 is not None else '+inf'}];"
-        print ( f"{line}" )
-        locker.Locker( ns.sqrts, ns.topo, ns.ignore_locks ).unlock ( masses )
+        print(f"{line}")
+        locker.Locker(ns.sqrts, ns.topo, ns.ignore_locks).unlock(masses)
         sys.exit()
     if nReqM != len(masses[0]):
-        print ( "[mg5Wrapper] you gave %d masses, but %d are required for %s." % \
-                ( len(masses[0]), nReqM, ns.topo ) )
+        print(
+            "[mg5Wrapper] you gave %d masses, but %d are required for %s."
+            % (len(masses[0]), nReqM, ns.topo)
+        )
         sys.exit()
-    nprocesses = bakeryHelpers.nJobs ( ns.nprocesses, nm )
-    
-    recaster = [ "MA5" ]
+    nprocesses = bakeryHelpers.nJobs(ns.nprocesses, nm)
+
+    recaster = ["MA5"]
     if ns.cutlang or ns.checkmate or ns.colliderbit:
-        recaster = [ "adl" ]
+        recaster = ["adl"]
         if ns.checkmate:
-            recaster = [ "cm2" ]
+            recaster = ["cm2"]
         if ns.colliderbit:
-            recaster = [ "colliderbit" ]
+            recaster = ["colliderbit"]
         ns.recast = True
     if ns.checkmate and ns.cutlang:
-        print ( "[mg5Wrapper] both checkmate and cutlang have been asked for. please choose!" )
+        print(
+            "[mg5Wrapper] both checkmate and cutlang have been asked for. please choose!"
+        )
         sys.exit()
     if ns.checkmate and ns.colliderbit:
-        print ( "[mg5Wrapper] both checkmate and colliderbit have been asked for. please choose!" )
+        print(
+            "[mg5Wrapper] both checkmate and colliderbit have been asked for. please choose!"
+        )
         sys.exit()
     if ns.cutlang and ns.colliderbit:
-        print ( "[mg5Wrapper] both cutlang and colliderbit have been asked for. please choose!" )
+        print(
+            "[mg5Wrapper] both cutlang and colliderbit have been asked for. please choose!"
+        )
         sys.exit()
-    recaster = [ "MA5" ]
-    mg5 = MG5Wrapper( vars(ns), recaster )
+    recaster = ["MA5"]
+    mg5 = MG5Wrapper(vars(ns), recaster)
     # mg5.info( "%d points to produce, in %d processes" % (nm,nprocesses) )
-    djobs = int(len(masses)/nprocesses)
+    djobs = int(len(masses) / nprocesses)
 
-    def runChunk ( chunk, pid ):
+    def runChunk(chunk, pid):
         for c in chunk:
-            mg5.run ( c, ns.analyses, pid )
-        print ( "%s[runChunk] finished chunk #%d%s" % \
-                ( ansi.GREEN, pid, ansi.RESET ) )
+            mg5.run(c, ns.analyses, pid)
+        print("%s[runChunk] finished chunk #%d%s" % (ansi.GREEN, pid, ansi.RESET))
 
-    jobs=[]
+    jobs = []
     for i in range(nprocesses):
-        chunk = masses[djobs*i:djobs*(i+1)]
-        if i == nprocesses-1:
-            chunk = masses[djobs*i:]
-        p = multiprocessing.Process(target=runChunk, args=(chunk,i))
-        jobs.append ( p )
+        chunk = masses[djobs * i : djobs * (i + 1)]
+        if i == nprocesses - 1:
+            chunk = masses[djobs * i :]
+        p = multiprocessing.Process(target=runChunk, args=(chunk, i))
+        jobs.append(p)
         p.start()
     for j in jobs:
         j.join()
     if ns.bake:
         import emCreator
         from types import SimpleNamespace
+
         # analyses = "atlas_susy_2016_07"
         analyses = ns.analyses
-        args = SimpleNamespace ( masses="all", topo=ns.topo, njets=ns.njets, \
-                analyses = analyses, copy=ns.copy, keep=ns.keep, sqrts=ns.sqrts,
-                verbose=False, ma5=not ns.cutlang, cutlang=ns.cutlang, stats=True,
-                cleanup = False, checkmate=ns.checkmate, colliderbit = ns.colliderbit )
-        emCreator.run ( args )
+        args = SimpleNamespace(
+            masses="all",
+            topo=ns.topo,
+            njets=ns.njets,
+            analyses=analyses,
+            copy=ns.copy,
+            keep=ns.keep,
+            sqrts=ns.sqrts,
+            verbose=False,
+            ma5=not ns.cutlang,
+            cutlang=ns.cutlang,
+            stats=True,
+            cleanup=False,
+            checkmate=ns.checkmate,
+            colliderbit=ns.colliderbit,
+        )
+        emCreator.run(args)
 
-if __name__ == "__main__":    
+
+if __name__ == "__main__":
     main()
